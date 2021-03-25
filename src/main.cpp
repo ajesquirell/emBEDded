@@ -3,18 +3,33 @@
 
 void setup() {
   // put your setup code here, to run once:
-  pinMode(LED_BUILTIN, OUTPUT);
-  pinMode(LED_BUILTIN_AUX, OUTPUT);
+  pinMode(D1, OUTPUT);
+  pinMode(D2, OUTPUT);
+  pinMode(D5, INPUT_PULLUP);
+  pinMode(D6, INPUT_PULLUP);
+
 }
 
 void loop() {
   // put your main code here, to run repeatedly:
-  digitalWrite(LED_BUILTIN, HIGH);
+  /*digitalWrite(LED_BUILTIN, HIGH);
   digitalWrite(LED_BUILTIN_AUX, LOW);
   delay(2000);
   digitalWrite(LED_BUILTIN, LOW);
   digitalWrite(LED_BUILTIN_AUX, HIGH);
-  delay(2000);
+  delay(2000);*/
+/*
+  // Testing inputs
+  if (digitalRead(D5) == LOW)
+    digitalWrite(D2, HIGH);
+  else
+    digitalWrite(D2, LOW);
+
+
+  if (digitalRead(D6) == LOW)
+    digitalWrite(D1, HIGH);
+  else
+    digitalWrite(D1, LOW);
 }
 */
 
@@ -41,11 +56,14 @@ void loop() {
 
 #include <ESP8266WiFi.h>
 #include <PubSubClient.h>
+#include <ArduinoJson.h>
 
 // Update these with values suitable for your network.
 
-const char* ssid = "Direction and ___";
-const char* password = "Step Size";
+//const char* ssid = "Direction and ___";
+//const char* password = "Step Size";
+const char* ssid = "Smabs 2.4G";
+const char* password = "icon5662exit865row";
 const char* mqtt_server = "mqtt.beebotte.com";
 const char* mqtt_user = "token:token_GdXdLP595Cqirx0s";
 const char* mqtt_pass = "";
@@ -91,24 +109,49 @@ void callback(char* topic, byte* payload, unsigned int length) {
   }
   Serial.println();
 
+  // Deserialize the json payload
+  StaticJsonDocument<200> doc;
+
+  //char json[] =
+      //"{\"sensor\":\"gps\",\"time\":1351824120,\"data\":[48.756080,2.302038]}";
+
+  // Deserialize the JSON document
+  DeserializationError error = deserializeJson(doc, payload);
+
+  // Test if parsing succeeds.
+  if (error) {
+    Serial.print(F("deserializeJson() failed: "));
+    Serial.println(error.f_str());
+    return;
+  }
+
+  // Fetch values.
+  //
+  // Most of the time, you can rely on the implicit casts.
+  // In other case, you can do doc["time"].as<long>();
+  const char* jsonData = doc["data"];
+
+  // Print values.
+  Serial.println(jsonData);
 
   // Switch on the LED if an 1 was received as first byte of "data" object (simply test that byte)
-  if ((char)payload[9] == '1') {
+  //if ((char)payload[9] == '1') {
+
+  //Casting to const char* should be okay, because a string literal is just a const char* anyways
+  if (strcmp(jsonData, (const char*)"up") == 0) {
     for (int i = 0; i < 10; i++)
     {
-      digitalWrite(LED_BUILTIN, HIGH);   // Turn the LED on (Note that LOW is the voltage level
-      // but actually the LED is on; this is because
-      // it is active low on the ESP)
+      digitalWrite(D1, HIGH);
       delay(100);
-      digitalWrite(LED_BUILTIN, LOW);
+      digitalWrite(D1, LOW);
       delay(100);
     }
-  } else if ((char)payload[9] == '3') {
+  } else if (strcmp(jsonData, (const char*)"down") == 0) {
     for (int i = 0; i < 10; i++)
     {
-     //digitalWrite(LED_BUILTIN_AUX, HIGH);  // Turn the LED off by making the voltage HIGH
+     digitalWrite(D2, HIGH);  // Turn the LED off by making the voltage HIGH
       delay(100);
-      //digitalWrite(LED_BUILTIN_AUX, LOW);
+      digitalWrite(D2, LOW);
       delay(100);
     }
   }
@@ -140,10 +183,11 @@ void reconnect() {
 }
 
 void setup() {
-  pinMode(LED_BUILTIN, OUTPUT);     // Initialize the BUILTIN_LED pin as an output
-  //pinMode(LED_BUILTIN_AUX, OUTPUT);
-  pinMode(9, INPUT_PULLUP);
-  pinMode(16, INPUT_PULLDOWN_16);
+  pinMode(D1, OUTPUT);
+  pinMode(D2, OUTPUT);
+  pinMode(D5, INPUT_PULLUP);
+  pinMode(D6, INPUT_PULLUP);
+
   Serial.begin(115200);
   setup_wifi();
   client.setServer(mqtt_server, 1883);
@@ -168,16 +212,16 @@ void loop() {
   }
 
   // Testing inputs
-  if (digitalRead(16) == LOW)
-    digitalWrite(LED_BUILTIN, HIGH);
+  if (digitalRead(D5) == LOW)
+    digitalWrite(D1, HIGH);
   else
-    digitalWrite(LED_BUILTIN, LOW);
+    digitalWrite(D1, LOW);
 
 
-  /*if (digitalRead(10) == LOW)
-    digitalWrite(LED_BUILTIN_AUX, HIGH);
+  if (digitalRead(D6) == LOW)
+    digitalWrite(D2, HIGH);
   else
-    digitalWrite(LED_BUILTIN_AUX, LOW);*/
+    digitalWrite(D2, LOW);
 
 
 }
