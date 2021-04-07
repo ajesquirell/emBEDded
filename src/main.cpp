@@ -1,20 +1,20 @@
 //#include <Arduino.h>
-#include <ESP8266WiFi.h>
+/*#include <ESP8266WiFi.h>
 
 void setup() {
   // put your setup code here, to run once:
   pinMode(D1, OUTPUT);
-  pinMode(D2, INPUT);
-  //pinMode(D5, INPUT_PULLUP);
-  //pinMode(D6, INPUT_PULLUP);
+  pinMode(D2, OUTPUT);
+  pinMode(D5, INPUT_PULLUP);
+  pinMode(D6, INPUT_PULLUP);
 
   //digitalRead(D1);
 }
 
 void loop() {
   // put your main code here, to run repeatedly:
-  digitalWrite(D1, HIGH);
-  delay(2000);
+  //digitalWrite(D1, HIGH);
+  //delay(2000);
 
   //digitalWrite(D2, HIGH);
   //delay(2000);
@@ -22,21 +22,21 @@ void loop() {
   //digitalWrite(D2, LOW);
   //delay(2000);
 
-  digitalWrite(D1, LOW);
-  delay(2000);
+  //digitalWrite(D1, LOW);
+  //delay(2000);
 
   // Testing inputs
- /* if (digitalRead(D5) == LOW)
-    digitalWrite(D2, HIGH);
+  /*if (digitalRead(D5) == LOW)
+    digitalWrite(D1, HIGH);
   else
-    digitalWrite(D2, LOW);
+    digitalWrite(D1, LOW);
 
 
   if (digitalRead(D6) == LOW)
-    digitalWrite(D1, HIGH);
+    digitalWrite(D2, HIGH);
   else
-    digitalWrite(D1, LOW);*/
-}
+    digitalWrite(D2, LOW);
+}*/
 
 
   
@@ -59,7 +59,7 @@ void loop() {
   - Open the "Tools -> Board -> Board Manager" and click install for the ESP8266"
   - Select your ESP8266 in "Tools -> Board"
 */
-/*
+
 #include <ESP8266WiFi.h>
 #include <PubSubClient.h>
 #include <ArduinoJson.h>
@@ -189,12 +189,10 @@ void reconnect() {
 }
 
 void setup() {
-  //pinMode(D1, OUTPUT); // This will be changing from OUTPUT to INPUT and vice-versa, because we will need High-Z state when D2 is outputting (INPUT is essentially HIGH-Z)
-  //pinMode(D2, OUTPUT); // This will be changing from OUTPUT to INPUT and vice-versa, because we will need High-Z state when D1 is outputting (INPUT is essentially HIGH-Z)
+  pinMode(D1, OUTPUT);
+  pinMode(D2, OUTPUT);
   pinMode(D5, INPUT_PULLUP);
   pinMode(D6, INPUT_PULLUP);
-
-  pinMode(D7, INPUT);
 
   Serial.begin(115200);
   setup_wifi();
@@ -217,47 +215,22 @@ void loop() {
     Serial.print("Publish message: ");
     Serial.println(msg);
     client.publish("outTopic", msg);*/
- /* }
+  }
 
   // Testing inputs
   //Later need these to be interrupts (or just do something else) so that it still works when wifi isn't connected :)
 
   //Up Button
-  if (digitalRead(D5) == LOW && digitalRead(D6) == HIGH)
-  {
-    pinMode(D1, OUTPUT);
+  if (digitalRead(D5) == LOW)
     digitalWrite(D1, HIGH);
-
-    pinMode(D2, OUTPUT_OPEN_DRAIN); // HIGH-Z
-    //digitalRead(D2);
-  }
-  else if (digitalRead(D5) == HIGH && digitalRead(D6) == HIGH)
-  {
-    pinMode(D1, OUTPUT);
+  else
     digitalWrite(D1, LOW);
-
-    pinMode(D2, OUTPUT);
-    digitalWrite(D2, LOW);
-  }
-
 
   // Down Button
-  else if (digitalRead(D6) == LOW && digitalRead(D5) == HIGH)
-  {
-    pinMode(D2, OUTPUT);
+  if (digitalRead(D6) == LOW)
     digitalWrite(D2, HIGH);
-
-    pinMode(D1, OUTPUT_OPEN_DRAIN); // HIGH-Z
-    //digitalRead(D1);
-  }
   else
-  {
-    pinMode(D2, OUTPUT);
     digitalWrite(D2, LOW);
 
-    pinMode(D1, OUTPUT);
-    digitalWrite(D1, LOW);
-  }
 
-
-} */
+}
