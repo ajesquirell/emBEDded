@@ -1,6 +1,7 @@
 {
     "cmake.configureOnOpen": true,
     "files.associations": {
-        "*.txt": "cpp"
+        "*.txt": "cpp",
+        "*.tcc": "cpp"
     }
 }
