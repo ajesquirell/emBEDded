@@ -19,7 +19,7 @@ class BedHandler {
         DOWN
     };
 
-    //bool IsMoving() { return bIsMoving; }
+    bool IsMoving() { return bIsMoving; }
 
     void Move_Automatic(Direction dir, unsigned int seconds);
     void Move_Automatic(Direction dir, short percentHeight);
@@ -35,7 +35,7 @@ class BedHandler {
     private:
     Ticker ticker;
 
-    //bool bIsMoving = false; // Don't check this within this class - For user to check - Move/Stop methods here should be simple and not conditional
+    bool bIsMoving = false; // Don't check this within this class - For user to check - Move/Stop methods here should be simple and not conditional
 
     void _Move(Direction dir);
 };

@@ -1,21 +1,9 @@
 /*
- Basic ESP8266 MQTT example
- This sketch demonstrates the capabilities of the pubsub library in combination
- with the ESP8266 board/library.
- It connects to an MQTT server then:
-  - publishes "hello world" to the topic "outTopic" every two seconds
-  - subscribes to the topic "inTopic", printing out any messages
-    it receives. NB - it assumes the received payloads are strings not binary
-  - If the first character of the topic "inTopic" is an 1, switch ON the ESP Led,
-    else switch it off
- It will reconnect to the server if the connection is lost using a blocking
+ ESP8266 MQTT Bed Project
+
+ NOTE: It will reconnect to the server if the connection is lost using a blocking
  reconnect function. See the 'mqtt_reconnect_nonblocking' example for how to
  achieve the same result without blocking the main loop.
- To install the ESP8266 board, (using Arduino 1.6.4+):
-  - Add the following 3rd party board manager under "File -> Preferences -> Additional Boards Manager URLs":
-       http://arduino.esp8266.com/stable/package_esp8266com_index.json
-  - Open the "Tools -> Board -> Board Manager" and click install for the ESP8266"
-  - Select your ESP8266 in "Tools -> Board"
 */
 
 
@@ -27,14 +15,11 @@
 #include "BedHandler.h"
 
 BedHandler bed;
-// Global pin interrupt flags (volatile because they are changed within the interrupt i.e. outside of the main loop)
-// volatile bool bButtonPressedUp = false;
-// volatile bool bButtonPressedDown = false;
 
 // ISR Declarations
 // void ICACHE_RAM_ATTR IsrUp();
 // void ICACHE_RAM_ATTR IsrDown();
-void ICACHE_RAM_ATTR printDot();
+//void ICACHE_RAM_ATTR printDot();
 
 void HandleInputs(unsigned long);
 unsigned long lastUpPress = 0;
@@ -75,6 +60,7 @@ void setup_wifi() {
   while (WiFi.status() != WL_CONNECTED) {
     // Note: Need delay in this loop or ESP crashes
 
+    // Alternate lights every 500ms to show we are connecting
     digitalWrite(LED_BUILTIN, tmp);
     digitalWrite(LED_BUILTIN_AUX, !tmp);
     tmp = !tmp;
@@ -236,8 +222,8 @@ void setup() {
   digitalWrite(LED_BUILTIN_AUX, HIGH);
 
   // Initialize Timer
-  timer1_attachInterrupt(printDot);
-  timer1_enable(TIM_DIV256, TIM_EDGE, TIM_SINGLE);
+  //timer1_attachInterrupt(printDot);
+  //timer1_enable(TIM_DIV256, TIM_EDGE, TIM_SINGLE);
   //timer1_write(1000);
 
   // attachInterrupt(digitalPinToInterrupt(INPUT_UP), IsrUp, CHANGE);
@@ -247,36 +233,6 @@ void setup() {
   setup_wifi();
   client.setServer(mqtt_server, 1883);
   client.setCallback(callback);
-}
-
-void ICACHE_RAM_ATTR printDot()
-{
-  if (digitalRead(INPUT_UP) == LOW)
-    {
-      if (!flag1)
-        Serial.println("UP");
-      digitalWrite(LED_BUILTIN, HIGH);
-      flag1 = true;
-    }
-    else
-    {
-      digitalWrite(LED_BUILTIN, LOW);
-      flag1 = false;
-    }
-
-    if (digitalRead(INPUT_DOWN) == LOW)
-    {
-      if (!flag2)
-      Serial.println("DOWN");
-      digitalWrite(LED_BUILTIN_AUX, HIGH);
-      flag2 = true;
-    }
-    else
-    {
-      digitalWrite(LED_BUILTIN_AUX, LOW);
-      flag2 = false;
-    }
-  timer1_write(2500000);
 }
 
 
@@ -299,72 +255,71 @@ void loop() {
   }
 
   
-  HandleInputs(30);
+  HandleInputs(50); // 50 Plenty for debouncing and minimum relay operation
 
   if (digitalRead(INPUT_POWER) == HIGH) //System OFF
-    {
-      //digitalWrite(LED_BUILTIN, LOW);
-      //digitalWrite(LED_BUILTIN_AUX, HIGH);
-    }
+  {
+
+  }
 
   else
   {
-    //digitalWrite(LED_BUILTIN_AUX, LOW);
-    //digitalWrite(LED_BUILTIN, HIGH);
+
   }  
 }
 
 // Buttons need to override network commands (For safety I guess?)
+// Debounce delay is ALSO for ensuring the relay achieves its full operating time before we potentially switch it off again
+// EX. With the way the system is now, if both buttons are pressed at the same time, it will start by turning on the output of the corresponding input it received first,
+//     then very shortly after when recognizing both buttons are pressed, turn OFF both relays (Stop()). This is just to make sure we are not operating at to high a switching "frequency"
+// This is (probably not) important because originally with the remote directly connected, when both buttons were pressed, both relays would be on. So the fastest possible switching "frequency" would be
+//     whatever speed the user could toggle the button. This is obviously much longer than its operating time, but with a uC controlling it now, I just want to make sure we are not abusing the relay's timing characteristics.
+// debounceDelay is obviously for button debouncing too!
 void HandleInputs(unsigned long debounceDelay) 
 {
-  if (bButtonPressedUp == false || bButtonPressedDown == false)
-  {
-    // This is only executed if both buttons are NOT pressed
 
-    /************ UP BUTTON ************/
-    if (millis() - lastUpPress > debounceDelay) // Debounce Delay
+  /************ UP BUTTON ************/
+  if (millis() - lastUpPress > debounceDelay) // Debounce Delay
+  {
+    if (digitalRead(INPUT_UP) == LOW && digitalRead(INPUT_DOWN) == HIGH)
     {
-      if (digitalRead(INPUT_UP) == LOW)
+      bButtonPressedUp = true;
+      if (!flag1)
+        Serial.println("UP");
+      bed.Move_Manual(BedHandler::UP);
+      flag1 = true;
+      lastUpPress = millis();
+    }
+    else
+    {
+      if (bButtonPressedUp == true) // Because we don't want this to constantly be stopping the bed when it is trying to move automatically, only after remote button is pressed
       {
-        bButtonPressedUp = true;
-        if (!flag1)
-          Serial.println("UP");
-        bed.Move_Manual(BedHandler::UP);
-        flag1 = true;
-        lastUpPress = millis();
-      }
-      else
-      {
-        if (bButtonPressedUp == true) // Because we don't want this to constantly be stopping the bed when it is trying to move automatically, only when moving via remote
-        {
-          bButtonPressedUp = false;
-          bed.Stop();
-          flag1 = false;
-        }
+        bButtonPressedUp = false;
+        bed.Stop();
+        flag1 = false;
       }
     }
+  }
 
-    /************ DOWN BUTTON ************/
-    if (millis() - lastDownPress > debounceDelay) // Debounce Delay
+  /************ DOWN BUTTON ************/
+  if (millis() - lastDownPress > debounceDelay) // Debounce Delay
+  {
+    if (digitalRead(INPUT_DOWN) == LOW && digitalRead(INPUT_UP) == HIGH)
     {
-      if (digitalRead(INPUT_DOWN) == LOW)
+      bButtonPressedDown = true;
+      if (!flag2)
+        Serial.println("DOWN");
+      bed.Move_Manual(BedHandler::DOWN);
+      flag2 = true;
+      lastDownPress = millis();
+    }
+    else
+    {
+      if (bButtonPressedDown == true)
       {
-        bButtonPressedDown = true;
-        if (!flag2)
-          Serial.println("DOWN");
-        bed.Move_Manual(BedHandler::DOWN);
-        flag2 = true;
-        lastDownPress = millis();
-      }
-      else
-      {
-        if (bButtonPressedDown == true)
-        {
-          bButtonPressedDown = false;
-          bed.Stop();
-          flag2 = false;
-        }
-        
+        bButtonPressedDown = false;
+        bed.Stop();
+        flag2 = false;
       }
     }
   }

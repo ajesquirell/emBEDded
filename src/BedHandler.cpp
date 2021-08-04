@@ -26,7 +26,7 @@ void BedHandler::Move_Manual(Direction dir)
 
 void BedHandler::Stop()
 {
-    //bIsMoving = false;
+    bIsMoving = false;
     //digitalWrite(OUTPUT_DOWN, LOW);
     //digitalWrite(OUTPUT_UP, LOW);
     digitalWrite(LED_BUILTIN, HIGH);
@@ -42,7 +42,7 @@ void BedHandler::Stop()
 
 void BedHandler::_Move(Direction dir)
 {
-    //bIsMoving = true;
+    bIsMoving = true;
 
     switch(dir)
     {
@@ -50,16 +50,16 @@ void BedHandler::_Move(Direction dir)
         {
             //digitalWrite(OUTPUT_UP, HIGH);
             //digitalWrite(OUTPUT_DOWN, LOW);
-            digitalWrite(LED_BUILTIN, HIGH);
-            digitalWrite(LED_BUILTIN_AUX, LOW);
+            digitalWrite(LED_BUILTIN, LOW);
+            digitalWrite(LED_BUILTIN_AUX, HIGH);
             break;
         }
         case (DOWN):
         {
             //digitalWrite(OUTPUT_DOWN, HIGH);
             //digitalWrite(OUTPUT_UP, LOW);
-            digitalWrite(LED_BUILTIN_AUX, HIGH);
-            digitalWrite(LED_BUILTIN, LOW);
+            digitalWrite(LED_BUILTIN, HIGH);
+            digitalWrite(LED_BUILTIN_AUX, LOW);
             break;
         }
     }
