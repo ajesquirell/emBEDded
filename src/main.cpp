@@ -11,15 +11,25 @@
 #include <ESP8266WiFi.h>
 #include <PubSubClient.h>
 #include <ArduinoJson.h>
+#include <NTPClient.h>
+#include <WiFiUdp.h>
 
 #include "BedHandler.h"
 
 BedHandler bed;
 
+WiFiUDP ntpUDP;
+NTPClient timeClient(ntpUDP, -14400);
+
 // ISR Declarations
 // void ICACHE_RAM_ATTR IsrUp();
 // void ICACHE_RAM_ATTR IsrDown();
 //void ICACHE_RAM_ATTR printDot();
+
+// Pin definitions for the "application" side of things (BedHandler takes care of the details of actually moving i.e. outputs)
+#define INPUT_UP D5
+#define INPUT_DOWN D6
+#define INPUT_POWER 9
 
 void HandleInputs(unsigned long);
 unsigned long lastUpPress = 0;
@@ -40,10 +50,10 @@ const char* mqtt_pass = "";
 
 WiFiClient espClient;
 PubSubClient client(espClient);
-unsigned long lastMsg = 0;
+//unsigned long lastMsg = 0;
 #define MSG_BUFFER_SIZE	(50)
 char msg[MSG_BUFFER_SIZE];
-int value = 0;
+//int value = 0;
 
 void setup_wifi() {
 
@@ -66,12 +76,13 @@ void setup_wifi() {
     tmp = !tmp;
 
     // Total delay of 500ms - Broken up into smaller chunks so that we can still poll for inputs
+    double tmp = millis();
     for (int i = 0; i < 10; i++)
     {
       delay(50);
-      HandleInputs(30);
+      HandleInputs(50);
     }
-    
+    Serial.print("Time was: " + String(millis() - tmp));
     Serial.print(".");
   }
 
@@ -81,6 +92,8 @@ void setup_wifi() {
   Serial.println("WiFi connected");
   Serial.println("IP address: ");
   Serial.println(WiFi.localIP());
+
+  timeClient.begin();
 
   // Pulse lights to show connected
   for (int i = 0; i < 8; i++)
@@ -116,63 +129,91 @@ void callback(char* topic, byte* payload, unsigned int length) {
     return;
   }
 
-  // Fetch values.
-  //
+  /********** Fetch values ***********/
   // Most of the time, you can rely on the implicit casts.
   // In other case, you can do doc["time"].as<long>();
-  //const char* jsonData = doc["data"];
 
-  const char* direction = doc["data"]["dir"];
-  const char* modifier = doc["data"]["modifier"];
-  unsigned int amount = doc["data"]["amt"];
-
-
-  // Print values.
-  Serial.printf("Direction: %s\n", direction);
-  Serial.printf("Modifier: %s\n", modifier);
-  Serial.printf("Amount: %u\n", amount);
-
-
-
-  // Switch on the LED if an 1 was received as first byte of "data" object (simply test that byte)
-  //if ((char)payload[9] == '1') {
-
-  // Do checks for 1. Direction, 2. Modifier 3. Calibrate
-  // 1. Direction: UP, DOWN
-  // 2. Modifier: 
-  //      Time: "5 seconds", etc (Cap to abount 25-30 sec)
-  //      Amount: 50%, 100%, "All the way", "All the way up", etc
-  // 3. Calibrate: Take about a minute, put bed down and calibrate to that, then up
-
-  // If a new command comes in, make sure you stop current command and default to latest one
-
-  //Casting to const char* should be okay, because a string literal is just a const char* anyways
-  if (strcmp(direction, (const char*)"up") == 0)
+  /*Bed Movement*/
+  if (doc["data"].containsKey("move"))
   {
-    if (strcmp(modifier, (const char*)"seconds") == 0 || strcmp(modifier, (const char*)"Seconds") == 0)
-    {
-      // Start bed movement now, end later via ticker without blocking code
-      bed.Move_Automatic(BedHandler::UP, amount);
-    }
-    else if (strcmp(modifier, (const char*)"percent") == 0 || strcmp(modifier, (const char*)"%") == 0)
-    {
-      //TBD
-    }
+    const char* direction = doc["data"]["move"]["dir"];
+    const char* modifier = doc["data"]["move"]["mod"];
+    uint8_t amount = doc["data"]["move"]["amt"];
 
 
+    // Change char* data to lowercase (Google Assistant sometimes randomly capitalizes)
+    /*for (; *direction; direction++) {
+      *direction = tolower(*direction);
+    }
+    for (; *modifier; modifier++) {
+      *modifier = tolower(*modifier);
+    }*/
+  
+    // Print values.
+    Serial.printf("Direction: %s\n", direction);
+    Serial.printf("Modifier: %s\n", modifier);
+    Serial.printf("Amount: %u\n", amount);
+
+    
+
+    
+    // Do checks for 1. Direction, 2. Modifier 3. Amount -OR- 1. Calibrate
+    // 1. Direction: UP, DOWN
+    // 2. Modifier: 
+    //      Time: "5 seconds", etc (Cap to abount 25-30 sec)
+    //      Amount: 50%, 100%, "All the way", "All the way up", etc
+    // 3. Calibrate: Take about a minute, put bed down and calibrate to that, then up
+
+    // CHECK! Maybe we should do more checks for validity of json message. ESP would crash when accidentally sent message with payload {"data" : {"data" : ... }}
+
+    // If a new command comes in, make sure you stop current command and default to latest one
+
+    //Casting to const char* should be okay, because a string literal is just a const char* anyways
+    if (strcmp(direction, "up") == 0)
+    {
+      if (strcmp(modifier, (const char*)"seconds") == 0)
+      {
+        // Cap the time amount to something a bit over the time it takes to fully raise or lower
+        // Start bed movement now, end later via ticker without blocking code
+        bed.Move_Automatic(BedHandler::UP, BedHandler::SECONDS, amount);
+      }
+      else if (strcmp(modifier, (const char*)"percent") == 0 || strcmp(modifier, (const char*)"%") == 0)
+      {
+        //TBD
+      }
+
+
+    }
+    
+    else if (strcmp(direction, (const char*)"down") == 0)
+    {
+      if (strcmp(modifier, (const char*)"seconds") == 0)
+      {
+        bed.Move_Automatic(BedHandler::DOWN, BedHandler::SECONDS, amount);
+      }
+      else if (strcmp(modifier, (const char*)"percent") == 0 || strcmp(modifier, (const char*)"%") == 0)
+      {
+        //TBD
+      }
+    }
+  }
+  else if (doc["data"].containsKey("alarm"))
+  {
+    /*Alarm Set*/
+    const char* alarmHour = doc["data"]["alarm"]["time"][0];
+    const char* alarmMinute = doc["data"]["alarm"]["time"][1];
+    const char* alarmAMPM = doc["data"]["alarm"]["ampm"];
+  }
+  else if (doc["data"].containsKey("calibrate"))
+  {
+    // Calibrate the Accel/Gyro/DMP
   }
   
-  else if (strcmp(direction, (const char*)"down") == 0)
-  {
-    if (strcmp(modifier, (const char*)"seconds") == 0 || strcmp(modifier, (const char*)"Seconds") == 0)
-    {
-      bed.Move_Automatic(BedHandler::DOWN, amount);
-    }
-    else if (strcmp(modifier, (const char*)"percent") == 0 || strcmp(modifier, (const char*)"%") == 0)
-    {
-      //TBD
-    }
-  }
+  
+
+  
+
+  
 
 }
 
@@ -244,28 +285,14 @@ void loop() {
   }
   client.loop();
 
-  unsigned long now = millis();
-  if (now - lastMsg > 2000) {
-    lastMsg = now;
-    ++value;
-    /*snprintf (msg, MSG_BUFFER_SIZE, "hello world #%ld", value);
-    Serial.print("Publish message: ");
-    Serial.println(msg);
-    client.publish("outTopic", msg);*/
-  }
-
+  timeClient.update();
+  Serial.println(timeClient.getFormattedTime());
   
   HandleInputs(50); // 50 Plenty for debouncing and minimum relay operation
 
-  if (digitalRead(INPUT_POWER) == HIGH) //System OFF
-  {
+  //bed.Update(); // For MPU related tasks
 
-  }
-
-  else
-  {
-
-  }  
+    
 }
 
 // Buttons need to override network commands (For safety I guess?)
@@ -322,6 +349,16 @@ void HandleInputs(unsigned long debounceDelay)
         flag2 = false;
       }
     }
+  }
+
+  if (digitalRead(INPUT_POWER) == HIGH) //System OFF
+  {
+    //ESP.reset();
+  }
+
+  else
+  {
+
   }
 }
 

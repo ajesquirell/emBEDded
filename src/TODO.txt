@@ -1,0 +1,34 @@
+/* TODO
+
+======================================================================== MPU ========================================================================
+    - Check and fix if MPU connection fails. Reset or something. Bunch of registers that can probably do something (see 107 for reset)
+    - Code to check if device has been stopped for certain length of time, then go to sleep (probably in main.cpp actually)
+    - Code here to program the MPU to go to sleep (actually CYCLE mode) while waking up every so often to take single accel reading (reg. 107 + 108)
+      -- (Preset wake up intervals in register 108. Probaly use 5hz here)
+      -- To keep MpuHandler class API-like, we can expose a public function that will go to sleep/cycle, which will in turn do things here in Update()
+          -- In my case, this would be called by BedHandler class
+      -- With code in main.cpp to process these reading to tell if we are moving again
+
+======================================================================== ALARM ========================================================================
+    - To impement an alarm, I am going to use Beebotte's persistent feature. In addition to Pub/Sub model, they have a read/write model. Write stores
+        persistent data in their server (stays for like 3 months or something), write retrieves that data.
+    - This is wanted functionality for an alarm because it allows us to have a point of 'permanent' storage without needing something like
+        an external EEPROM, dedicated external server, or something like that.
+    - In addition to just being able to store the alarm time data in Beebotte, we can also automatically publish that data to the channel with their 
+        new "SoS" feature (Send on Subscribe). This is useful for if there is a power outage after the alarm is set. When the ESP boots back up,
+        it will subscribe and be automatically sent that data from the alarmTime resource
+
+    - Still need to figure out how to process the data to do the alarm, what options to have, how to actually set it, etc.
+        - We can probably contact an external time server or something like that, then compare our time with that
+        - Convert to 24 hour time
+
+    - Logic to determine AM/PM if not specified
+
+    - Subscribe to new resource
+
+
+
+======================================================================== REMOTE ========================================================================
+    - Implement double tap to go all the way up or all the way down
+
+*/
