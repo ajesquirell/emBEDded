@@ -35,4 +35,7 @@
 
 ======================================================================== GENERAL ========================================================================
     - Show on lights if MQTT is not connected
+    - Voice command "Do I have bed alarm set?"
+    - Be able to text to "wake me up"/ move bed
+
 */
