@@ -8,6 +8,7 @@
       -- To keep MpuHandler class API-like, we can expose a public function that will go to sleep/cycle, which will in turn do things here in Update()
           -- In my case, this would be called by BedHandler class
       -- With code in main.cpp to process these reading to tell if we are moving again
+    - Need to somehow allow for reboots without the DMP firmware write failing
 
 ======================================================================== ALARM ========================================================================
     - To impement an alarm, I am going to use Beebotte's persistent feature. In addition to Pub/Sub model, they have a read/write model. Write stores
@@ -31,4 +32,7 @@
 ======================================================================== REMOTE ========================================================================
     - Implement double tap to go all the way up or all the way down
 
+
+======================================================================== GENERAL ========================================================================
+    - Show on lights if MQTT is not connected
 */

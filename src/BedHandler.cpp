@@ -50,6 +50,10 @@ void BedHandler::Update()
 {
     mpu.Update();
 }
+void BedHandler::Init()
+{
+    mpu.Init();
+}
 
 /*********** Private ***********/
 

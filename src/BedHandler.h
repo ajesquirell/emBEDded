@@ -32,6 +32,7 @@ class BedHandler {
 
     void Update(); //-> Could be for if I wanted to ensure only this class can modify bed position, using private up/down states that are monitored... But This is only me and that is just more complex
     //Reset? -> Every time MQTT message is received?
+    void Init();
 
     void Stop();
    

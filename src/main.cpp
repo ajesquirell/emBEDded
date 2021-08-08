@@ -19,7 +19,7 @@
 BedHandler bed;
 
 WiFiUDP ntpUDP;
-NTPClient timeClient(ntpUDP, -14400);
+NTPClient timeClient(ntpUDP, -14400); //EST
 
 // ISR Declarations
 // void ICACHE_RAM_ATTR IsrUp();
@@ -46,6 +46,7 @@ const char* password = "Step Size";
 const char* mqtt_server = "mqtt.beebotte.com";
 const char* mqtt_user = "token:token_GdXdLP595Cqirx0s";
 const char* mqtt_pass = "";
+int reconnectTime = 0;
 
 
 WiFiClient espClient;
@@ -219,7 +220,8 @@ void callback(char* topic, byte* payload, unsigned int length) {
 
 void reconnect() {
   // Loop until we're reconnected
-  while (!client.connected()) {
+  //while (!client.connected()) {
+  if (millis() - reconnectTime > 5000) {
     Serial.print("Attempting MQTT connection...");
     // Create a random client ID
     String clientId = "ESP8266Client-";
@@ -236,7 +238,8 @@ void reconnect() {
       Serial.print(client.state());
       Serial.println(" try again in 5 seconds");
       // Wait 5 seconds before retrying
-      delay(5000);
+      //delay(5000);
+      reconnectTime = millis();
     }
   }
 }
@@ -274,6 +277,8 @@ void setup() {
   setup_wifi();
   client.setServer(mqtt_server, 1883);
   client.setCallback(callback);
+
+  bed.Init();
 }
 
 
@@ -283,14 +288,16 @@ void loop() {
   if (!client.connected()) {
     reconnect();
   }
-  client.loop();
+  else {
+      client.loop();
+  }
 
   timeClient.update();
-  Serial.println(timeClient.getFormattedTime());
+  //Serial.println(timeClient.getFormattedTime());
   
   HandleInputs(50); // 50 Plenty for debouncing and minimum relay operation
 
-  //bed.Update(); // For MPU related tasks
+  bed.Update(); // For MPU related tasks
 
     
 }
