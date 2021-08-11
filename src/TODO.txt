@@ -26,6 +26,7 @@
     - Logic to determine AM/PM if not specified
 
     - Subscribe to new resource
+    - When alarm is received, we should publish(write) to another resource for us to check with a command if alarm set was successful
 
 
 
@@ -52,6 +53,10 @@
 
 /*
 THIS COMMIT:
-- Got C char* stuff working for json field checking (No Arduino String() class!)
-- Rearranged json field checking to make more sense
+- Account for "second" being a modifier
+- Edit main.cpp to subscribe to new "alarm" resource
+- Adjust json format for alarms
+- Begin to parse alarm format from google
+- Move sensitive data to file in gitignore
+- Update Readme
 */

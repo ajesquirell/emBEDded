@@ -4,6 +4,7 @@ Welcome to my emBEDded systems project - aka my IoT controlled bed
 
 # (IN PROGRESS)
 
+
 ## List of commands:
 
     1. move
@@ -32,11 +33,24 @@ If COMMAND is "alarm":
 {
   "data": {
     "alarm": {
-      "time": ["HOUR", "MIN"],
-      "ampm": "am OR pm"
+      "time": "hour : min a/p . m .",
     }
   }
 }
 ```
 
+If using Beebotte as the Websocket-MQTT Bridge, you are able to create a "Send-on-Subscribe" resource (SoS) for your alarm which will automatically send the device the latest alarm set when it boots. This is useful in case of power outages or in other cases where your device might reboot.
+
 NOTE: Some MQTT brokers automatically include "data" in the JSON payload. If that is the case, simply start with your "COMMAND".
+
+
+credentials.h file format:
+(Example shown for using beebotte.com for MQTT)
+```C
+// Network Values
+const char* ssid = "YOUR_SSID";
+const char* password = "YOUR_PASSWORD";
+const char* mqtt_server = "mqtt.beebotte.com";
+const char* mqtt_user = "token:YOUR_TOKEN";
+const char* mqtt_pass = "";
+```

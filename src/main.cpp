@@ -15,6 +15,7 @@
 #include <WiFiUdp.h>
 
 #include "BedHandler.h"
+#include "credentials.h"
 
 BedHandler bed;
 
@@ -38,16 +39,11 @@ bool bButtonPressedUp = false;
 bool bButtonPressedDown = false;
 bool flag1, flag2; // Used for serial output debugging of button presses
 
-// Network Values
-const char* ssid = "Direction and ___";
-const char* password = "Step Size";
-//const char* ssid = "Smabs 2.4G";
-//const char* password = "icon5662exit865row";
-const char* mqtt_server = "mqtt.beebotte.com";
-const char* mqtt_user = "token:token_GdXdLP595Cqirx0s";
-const char* mqtt_pass = "";
 int reconnectTime = 0;
 
+int alarmHour = 0;
+int alarmMin = 0;
+bool alarmAm = true;
 
 WiFiClient espClient;
 PubSubClient client(espClient);
@@ -161,7 +157,7 @@ void callback(char* topic, byte* payload, unsigned int length) {
     Serial.printf("Amount: %u\n", amount);
 
     //Casting to const char* should be okay, because a string literal is just a const char* anyways
-    if (strcmp(modifier, (const char*)"seconds") == 0)
+    if (strcmp(modifier, (const char*)"seconds") == 0 || strcmp(modifier, (const char*)"second") == 0)
     {
       if (amount > 30) amount = 30;
       if (amount < 0) amount = 0;
@@ -191,18 +187,31 @@ void callback(char* topic, byte* payload, unsigned int length) {
         //TBD
       }
     }
-    
+
     free(mod); // Important to avoid eventual memory leaks
   }
 
-
+  /*Alarm Set*/
   else if (doc["data"].containsKey("alarm"))
   {
-    /*Alarm Set*/
-    const char* alarmHour = doc["data"]["alarm"]["time"][0];
-    const char* alarmMinute = doc["data"]["alarm"]["time"][1];
-    const char* alarmAMPM = doc["data"]["alarm"]["ampm"];
+    // Based on format Google assistant uses to fill payload
+    const char* time = doc["data"]["alarm"]["time"];
+    char* mutableTime = strdup(time);
+    char* token = strtok(mutableTime, ":");
+    alarmHour = atoi(token); // string to int
+        Serial.print(token);
+
+    Serial.print(alarmHour);
+        Serial.print(alarmHour);
+
+    
+    token = strtok (NULL, " ");
+    Serial.println(token);
+
+    free(mutableTime);
   }
+
+
   else if (doc["data"].containsKey("calibrate"))
   {
     // Calibrate the Accel/Gyro/DMP
@@ -227,10 +236,9 @@ void reconnect() {
     // Attempt to connect
     if (client.connect(clientId.c_str(), mqtt_user, mqtt_pass)) {
       Serial.println("connected");
-      // Once connected, publish an announcement...
-      //client.publish("outTopic", "hello world");
       // ... and resubscribe
       client.subscribe("IFTTT_Bed_with_RPi/ga", 1);
+      client.subscribe("IFTTT_Bed_with_RPi/alarm", 1);
     } else {
       Serial.print("failed, rc=");
       Serial.print(client.state());
