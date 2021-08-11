@@ -131,73 +131,71 @@ void callback(char* topic, byte* payload, unsigned int length) {
   }
 
   /********** Fetch values ***********/
-  // Most of the time, you can rely on the implicit casts.
-  // In other case, you can do doc["time"].as<long>();
 
-  /*Bed Movement*/
-  if (doc["data"].containsKey("move"))
-  {
-    const char* direction = doc["data"]["move"]["dir"];
-    const char* modifier = doc["data"]["move"]["mod"];
-    uint8_t amount = doc["data"]["move"]["amt"];
-
-
-    // Change char* data to lowercase (Google Assistant sometimes randomly capitalizes)
-    /*for (; *direction; direction++) {
-      *direction = tolower(*direction);
-    }
-    for (; *modifier; modifier++) {
-      *modifier = tolower(*modifier);
-    }*/
-  
-    // Print values.
-    Serial.printf("Direction: %s\n", direction);
-    Serial.printf("Modifier: %s\n", modifier);
-    Serial.printf("Amount: %u\n", amount);
-
-    
-
-    
-    // Do checks for 1. Direction, 2. Modifier 3. Amount -OR- 1. Calibrate
+  // Do checks for 1. Direction, 2. Modifier 3. Amount -OR- 1. Calibrate
     // 1. Direction: UP, DOWN
     // 2. Modifier: 
     //      Time: "5 seconds", etc (Cap to abount 25-30 sec)
     //      Amount: 50%, 100%, "All the way", "All the way up", etc
     // 3. Calibrate: Take about a minute, put bed down and calibrate to that, then up
 
-    // CHECK! Maybe we should do more checks for validity of json message. ESP would crash when accidentally sent message with payload {"data" : {"data" : ... }}
-
-    // If a new command comes in, make sure you stop current command and default to latest one
+  /*Bed Movement*/
+  if (doc["data"].containsKey("move"))
+  {
+    const char* direction = doc["data"]["move"]["dir"];
+    const char* tempMod = doc["data"]["move"]["mod"];
+    uint8_t amount = doc["data"]["move"]["amt"];
+    
+    // Change modifier lowercase (Google Assistant sometimes randomly capitalizes)
+    char* mod = strdup(tempMod); // const char* -> char* (mod stored in heap)
+    unsigned char* umod = (unsigned char*)mod; // bc tolower() behavior is undefined if arg is not unsigned char
+    for(uint8_t i = 0; i < sizeof(umod)/sizeof(umod[0]); i++) {
+      umod[i] = tolower(umod[i]);
+    }
+    const char* modifier = mod;
+    //yes I know I could've use Arduino's String class to make life easier but that's no fun
+  
+    // Print values.
+    Serial.printf("Direction: %s\n", direction);
+    Serial.printf("Modifier: %s\n", modifier);
+    Serial.printf("Amount: %u\n", amount);
 
     //Casting to const char* should be okay, because a string literal is just a const char* anyways
-    if (strcmp(direction, "up") == 0)
+    if (strcmp(modifier, (const char*)"seconds") == 0)
     {
-      if (strcmp(modifier, (const char*)"seconds") == 0)
+      if (amount > 30) amount = 30;
+      if (amount < 0) amount = 0;
+
+      if (strcmp(direction, (const char*)"up") == 0)
       {
-        // Cap the time amount to something a bit over the time it takes to fully raise or lower
-        // Start bed movement now, end later via ticker without blocking code
         bed.Move_Automatic(BedHandler::UP, BedHandler::SECONDS, amount);
       }
-      else if (strcmp(modifier, (const char*)"percent") == 0 || strcmp(modifier, (const char*)"%") == 0)
-      {
-        //TBD
-      }
-
-
-    }
-    
-    else if (strcmp(direction, (const char*)"down") == 0)
-    {
-      if (strcmp(modifier, (const char*)"seconds") == 0)
+      else if (strcmp(direction, (const char*)"down") == 0)
       {
         bed.Move_Automatic(BedHandler::DOWN, BedHandler::SECONDS, amount);
       }
-      else if (strcmp(modifier, (const char*)"percent") == 0 || strcmp(modifier, (const char*)"%") == 0)
+    }
+
+
+    else if (strcmp(modifier, (const char*)"percent") == 0 || strcmp(modifier, (const char*)"%") == 0)
+    {
+      if (amount > 100) amount = 100;
+      if (amount < 0) amount = 0;
+      
+      if (strcmp(direction, (const char*)"up") == 0)
+      {
+        //TBD
+      }
+      else if (strcmp(direction, (const char*)"down") == 0)
       {
         //TBD
       }
     }
+    
+    free(mod); // Important to avoid eventual memory leaks
   }
+
+
   else if (doc["data"].containsKey("alarm"))
   {
     /*Alarm Set*/
@@ -278,7 +276,7 @@ void setup() {
   client.setServer(mqtt_server, 1883);
   client.setCallback(callback);
 
-  bed.Init();
+  //bed.Init();
 }
 
 
@@ -297,7 +295,7 @@ void loop() {
   
   HandleInputs(50); // 50 Plenty for debouncing and minimum relay operation
 
-  bed.Update(); // For MPU related tasks
+  //bed.Update(); // For MPU related tasks
 
     
 }

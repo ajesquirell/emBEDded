@@ -37,5 +37,21 @@
     - Show on lights if MQTT is not connected
     - Voice command "Do I have bed alarm set?"
     - Be able to text to "wake me up"/ move bed
+    - If a new command comes in, make sure you stop current command and default to latest one
+    - Maybe look into a self-contained broker since beebotte already went out once - https://github.com/martin-ger/uMQTTBroker
 
+
+
+======================================================================== DONE! ========================================================================
+    - CHECK! Maybe we should do more checks for validity of json message. ESP would crash when accidentally sent message with payload {"data" : {"data" : ... }}
+    - Cap the time amount to something a bit over the time it takes to fully raise or lower
+
+*/
+
+
+
+/*
+THIS COMMIT:
+- Got C char* stuff working for json field checking (No Arduino String() class!)
+- Rearranged json field checking to make more sense
 */

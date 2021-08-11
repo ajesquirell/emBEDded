@@ -2,6 +2,7 @@
 // Code from the MPU6050 I2C device class by Jeff Rowberg
 
 #include "MpuHandler.h"
+#include "MpuDefinitions.h"
 
 #include "I2Cdev.h"
 
@@ -12,9 +13,6 @@
 #endif
 
 
-/*MpuHandler::MpuHandler() {
-  Init();
-}*/
 
 void MpuHandler::Init()
 {

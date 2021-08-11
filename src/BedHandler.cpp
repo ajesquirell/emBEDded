@@ -9,7 +9,8 @@ BedHandler::~BedHandler()
 }
 void BedHandler::Move_Automatic(Direction dir, Modifier mod, uint8_t seconds)
 {
-    if (mod == SECONDS)
+    if (mod == SECONDS) // Start bed movement now, end later via ticker without blocking code
+
     {
         _Move(dir);
         ticker.attach(seconds, std::bind(&BedHandler::Stop, this));
