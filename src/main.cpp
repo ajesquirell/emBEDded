@@ -463,7 +463,7 @@ void HandleAlarm()
 
     
     // After alarm turned off --> bAlarmSet = false;
-    //client.publish("IFTTT_Bed_with_RPi/alarm", "{\"data\" : { \"alarm\" : { \"time\" : \"TIIIME\", \"active\" : false}}}");
+    client.publish("IFTTT_Bed_with_RPi/alarm", "{\"data\" : { \"alarm\" : { \"time\" : \"TIIIME\", \"active\" : false}}, \"write\" : true}");
   }
 
   if (bAlarmActivated)

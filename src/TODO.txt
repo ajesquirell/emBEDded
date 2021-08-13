@@ -36,6 +36,8 @@
 
     - Add snooze feature? xD
 
+    - Add some sort of commands queue for alarm behavior so we don't use a blocking while (I think it blocks?)
+
 
 
 ======================================================================== REMOTE ========================================================================
