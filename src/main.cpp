@@ -32,7 +32,6 @@ NTPClient timeClient(ntpUDP, -14400); //EST
 #define INPUT_DOWN D6
 #define INPUT_POWER 9
 
-void HandleInputs(unsigned long);
 unsigned long lastUpPress = 0;
 unsigned long lastDownPress = 0;
 bool bButtonPressedUp = false;
@@ -44,6 +43,12 @@ int reconnectTime = 0;
 int alarmHour = 0;
 int alarmMin = 0;
 bool alarmAm = true;
+bool bAlarmSet = false;
+bool bAlarmActivated = false;
+
+void HandleInputs(unsigned long);
+void HandleAlarm();
+
 
 WiFiClient espClient;
 PubSubClient client(espClient);
@@ -192,25 +197,98 @@ void callback(char* topic, byte* payload, unsigned int length) {
   }
 
   /*Alarm Set*/
-  else if (doc["data"].containsKey("alarm"))
+  else if (doc["data"].containsKey("alarm") && doc["data"]["alarm"]["active"] == true)
   {
+    bAlarmSet = true;
+
+    // Reset Alarm to default (should be able to delete later when all cases handled)
+    alarmHour = 0;
+    alarmMin = 0;
+    alarmAm = true;
+    bool bMinutesGiven = false;
+    bool bAmPmGiven = false;
     // Based on format Google assistant uses to fill payload
     const char* time = doc["data"]["alarm"]["time"];
     char* mutableTime = strdup(time);
-    char* token = strtok(mutableTime, ":");
-    alarmHour = atoi(token); // string to int
-        Serial.print(token);
+    char* token = strtok(mutableTime, " ");
+    for (int i = 0; token != NULL; i++) // While loop with index
+    {
+      if (i == 0) // Get hour
+      {
+        alarmHour = atoi(token); // string to int
+      }
+      else if (i == 1) // "10 : 30..." OR "10 a . m ."     --> Either ": Min" OR am/pm
+      {
+        if (*token == ':') // "10 : 30..."                 --> Minutes were given, get them next loop
+        {
+          bMinutesGiven = true;
+        }
+        else // "10 a . m ."                               --> Minutes not given - Set alarm on the hour, just get am/pm
+        {
+          alarmMin = 0;
+          if (*token == 'a') {
+            bAmPmGiven = true;
+            alarmAm = true;
+          }
+          else if (*token == 'p')  {
+            bAmPmGiven = true;
+            alarmAm = false;
+          }
+        }
+      }
+      else if (i == 2 && bMinutesGiven == true) // "10 : 30..."
+      {
+        alarmMin = atoi(token);
+      }
+      else if (i == 3) // "10 : 30 a . m ."
+      {
+        if (*token == 'a') {
+          bAmPmGiven = true;
+          alarmAm = true;
+        }
+        else if (*token == 'p') {
+          bAmPmGiven = true;
+          alarmAm = false;
+        }
+      }
+      else if (i >= 4)
+      {
+        break;
+      }
 
-    Serial.print(alarmHour);
-        Serial.print(alarmHour);
+      Serial.printf("i = %u\n", i);
+      token = strtok (NULL, " ");
+    }
 
+    // Process hour to 24hr time
+    // If am/pm given, use that. If not, use soonest (mimic Google behavior)
+    if (bAmPmGiven)
+    {
+      alarmHour %= 12;
+      if (!alarmAm)
+        alarmHour += 12;
+    }
+    else
+    {
+      // Greedily get the first upcoming hour specified
+      alarmHour %= 12;
+      const float fCurrentTime = (float)timeClient.getHours() + ((float)timeClient.getMinutes() / 60.0f);
+      const float fAlarmTime = (float)alarmHour + ((float)alarmMin / 60.0f); // Just for comparison. In 12 hour time
+
+      // 1 2 3 4 5 6 7 8 9 *10* 11 12 (13) 14 15 16 17 18 19 20 21 *22* 23 24
+      if (fCurrentTime >= fAlarmTime && fCurrentTime < (fAlarmTime + 12.0f)) {
+        alarmHour += 12;
+      }
+    }
     
-    token = strtok (NULL, " ");
-    Serial.println(token);
+    Serial.printf("Current Time: %s\n", timeClient.getFormattedTime().c_str());
+    Serial.printf("Hour: %u\n", alarmHour);
+    Serial.printf("Min: %u\n", alarmMin);
+    Serial.printf("AM: %u", alarmAm);
+    if (!bAmPmGiven) Serial.printf(" (Not Given)\n");
 
     free(mutableTime);
   }
-
 
   else if (doc["data"].containsKey("calibrate"))
   {
@@ -295,13 +373,14 @@ void loop() {
     reconnect();
   }
   else {
-      client.loop();
+    client.loop();
   }
 
   timeClient.update();
-  //Serial.println(timeClient.getFormattedTime());
   
   HandleInputs(50); // 50 Plenty for debouncing and minimum relay operation
+
+  HandleAlarm();
 
   //bed.Update(); // For MPU related tasks
 
@@ -375,3 +454,26 @@ void HandleInputs(unsigned long debounceDelay)
   }
 }
 
+void HandleAlarm()
+{
+  // If time, set flag to true and once turned off, publish to alarm resource setting alarm as inactive
+  if (timeClient.getHours() == alarmHour && timeClient.getMinutes() == alarmMin && bAlarmSet == true)
+  {
+    bAlarmActivated = true;
+
+    
+    // After alarm turned off --> bAlarmSet = false;
+    //client.publish("IFTTT_Bed_with_RPi/alarm", "{\"data\" : { \"alarm\" : { \"time\" : \"TIIIME\", \"active\" : false}}}");
+  }
+
+  if (bAlarmActivated)
+  {
+    // ==================== BED ALARM BEHAVIOR HERE ====================
+    bed.Move_Automatic(BedHandler::UP, BedHandler::SECONDS, 3);
+    // ...
+    // =================================================================
+    bAlarmSet = false;
+    bAlarmActivated = false;
+  }
+
+}

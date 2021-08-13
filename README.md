@@ -33,7 +33,8 @@ If COMMAND is "alarm":
 {
   "data": {
     "alarm": {
-      "time": "hour : min a/p . m .",
+      "time" : "hour : min a/p . m .",
+      "active" : true/false
     }
   }
 }

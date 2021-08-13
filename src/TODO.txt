@@ -28,6 +28,14 @@
     - Subscribe to new resource
     - When alarm is received, we should publish(write) to another resource for us to check with a command if alarm set was successful
 
+    - Crashes when say "set bed alarm for 2" (no minute or am/pm)
+
+    - Add "set bed alarm for noon" or "midnight"
+
+    - Add timestamp check when we get an alarm message to see if a day has passed (in case device is unplugged or something)
+
+    - Add snooze feature? xD
+
 
 
 ======================================================================== REMOTE ========================================================================
@@ -53,10 +61,10 @@
 
 /*
 THIS COMMIT:
-- Account for "second" being a modifier
-- Edit main.cpp to subscribe to new "alarm" resource
-- Adjust json format for alarms
-- Begin to parse alarm format from google
-- Move sensitive data to file in gitignore
-- Update Readme
+- Fully parse alarm message to handle all cases
+--- Yay C-Style string methods
+- Implement way to convert to 24 hour time
+--- When given am/pm or not
+- Change JSON format for alarm
+- Beginnings of alarm activation
 */
