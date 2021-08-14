@@ -63,10 +63,6 @@
 
 /*
 THIS COMMIT:
-- Fully parse alarm message to handle all cases
---- Yay C-Style string methods
-- Implement way to convert to 24 hour time
---- When given am/pm or not
-- Change JSON format for alarm
-- Beginnings of alarm activation
+- Added customizable behavior for when alarm is activated with function pointers
+- Added some tired comments for weird code I thought was funny
 */

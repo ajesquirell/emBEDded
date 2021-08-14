@@ -13,6 +13,7 @@
 #include <ArduinoJson.h>
 #include <NTPClient.h>
 #include <WiFiUdp.h>
+#include <queue>
 
 #include "BedHandler.h"
 #include "credentials.h"
@@ -56,6 +57,10 @@ PubSubClient client(espClient);
 #define MSG_BUFFER_SIZE	(50)
 char msg[MSG_BUFFER_SIZE];
 //int value = 0;
+
+// Alarm queue for bed commands
+std::queue<void(*)()> alarmQueue; // Queue of function pointers - Allows us to call ANY FUNCTION when alarm goes off :D
+                                  // This works too --> std::queue<std::function<void()>> alarmQueue;
 
 void setup_wifi() {
 
@@ -132,13 +137,6 @@ void callback(char* topic, byte* payload, unsigned int length) {
   }
 
   /********** Fetch values ***********/
-
-  // Do checks for 1. Direction, 2. Modifier 3. Amount -OR- 1. Calibrate
-    // 1. Direction: UP, DOWN
-    // 2. Modifier: 
-    //      Time: "5 seconds", etc (Cap to abount 25-30 sec)
-    //      Amount: 50%, 100%, "All the way", "All the way up", etc
-    // 3. Calibrate: Take about a minute, put bed down and calibrate to that, then up
 
   /*Bed Movement*/
   if (doc["data"].containsKey("move"))
@@ -461,19 +459,32 @@ void HandleAlarm()
   {
     bAlarmActivated = true;
 
+    // Clear Alarm Queue
+
+    // ==================== BED ALARM BEHAVIOR HERE ====================                                                                  --> Sure, I could've just made a cool (probably better looking) command struct to hold arguments
+    // Add desired bed commands to alarmQueue                                                                                                 for bed.Move_Automatic(..), but function pointers are cool too...
+    //alarmQueue.push([] (BedHandler::Direction a=BedHandler::UP, BedHandler::Modifier b=BedHandler::SECONDS, int c=5) {bed.Move_Automatic(a,b,c);}); --> lol this is so ridiculous
+    alarmQueue.push([] () {bed.Move_Automatic(BedHandler::UP, BedHandler::SECONDS, 5);});
+    alarmQueue.push([] () {bed.Move_Automatic(BedHandler::DOWN, BedHandler::SECONDS, 5);});
+    // ...
+    // =================================================================
     
-    // After alarm turned off --> bAlarmSet = false;
+    bAlarmSet = false;
     client.publish("IFTTT_Bed_with_RPi/alarm", "{\"data\" : { \"alarm\" : { \"time\" : \"TIIIME\", \"active\" : false}}, \"write\" : true}");
   }
 
   if (bAlarmActivated)
   {
-    // ==================== BED ALARM BEHAVIOR HERE ====================
-    bed.Move_Automatic(BedHandler::UP, BedHandler::SECONDS, 3);
-    // ...
-    // =================================================================
-    bAlarmSet = false;
-    bAlarmActivated = false;
+    if (!bed.IsMoving())
+    {
+      alarmQueue.front()(); // Call the function at beginning of queue
+      alarmQueue.pop();
+    }
+
+    if (alarmQueue.empty())
+    {
+      bAlarmActivated = false;
+    }
   }
 
 }
