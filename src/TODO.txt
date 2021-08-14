@@ -34,14 +34,17 @@
 
     - Add timestamp check when we get an alarm message to see if a day has passed (in case device is unplugged or something)
 
-    - Add snooze feature? xD
+    - Add snooze feature? xD --> bed would go all the way back down
 
     - Add some sort of commands queue for alarm behavior so we don't use a blocking while (I think it blocks?)
+
+    - Add a Google Assistant routine command (or tasker or whatever) for setting bed alarm mode - maybe preset behavior and random behavior?
 
 
 
 ======================================================================== REMOTE ========================================================================
     - Implement double tap to go all the way up or all the way down
+    - Maybe make one button snooze alarm and one button turn off? 
 
 
 ======================================================================== GENERAL ========================================================================
@@ -63,6 +66,9 @@
 
 /*
 THIS COMMIT:
-- Added customizable behavior for when alarm is activated with function pointers
-- Added some tired comments for weird code I thought was funny
+- Added clear alarmQueue
+- Cleaned up HandleInputs
+- Fixed queue not clearing bug
+- Added ability to turn off alarm with remote
+-- (And doesn't move the bed on that press)
 */

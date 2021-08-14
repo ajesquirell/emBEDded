@@ -37,7 +37,6 @@ unsigned long lastUpPress = 0;
 unsigned long lastDownPress = 0;
 bool bButtonPressedUp = false;
 bool bButtonPressedDown = false;
-bool flag1, flag2; // Used for serial output debugging of button presses
 
 int reconnectTime = 0;
 
@@ -394,17 +393,25 @@ void loop() {
 // debounceDelay is obviously for button debouncing too!
 void HandleInputs(unsigned long debounceDelay) 
 {
-
   /************ UP BUTTON ************/
   if (millis() - lastUpPress > debounceDelay) // Debounce Delay
   {
     if (digitalRead(INPUT_UP) == LOW && digitalRead(INPUT_DOWN) == HIGH)
     {
-      bButtonPressedUp = true;
-      if (!flag1)
+      if (!bButtonPressedUp && !bAlarmActivated)
+      {
         Serial.println("UP");
-      bed.Move_Manual(BedHandler::UP);
-      flag1 = true;
+        bed.Move_Manual(BedHandler::UP);
+      }
+
+      if (!bButtonPressedUp && bAlarmActivated) // Idea is, when alarm is going off, to be able to stop alarm "on press" without also causing the bed to move on that one press
+      {
+        bAlarmActivated = false;
+        bed.Stop();
+      }
+
+      
+      bButtonPressedUp = true;
       lastUpPress = millis();
     }
     else
@@ -413,7 +420,6 @@ void HandleInputs(unsigned long debounceDelay)
       {
         bButtonPressedUp = false;
         bed.Stop();
-        flag1 = false;
       }
     }
   }
@@ -423,11 +429,20 @@ void HandleInputs(unsigned long debounceDelay)
   {
     if (digitalRead(INPUT_DOWN) == LOW && digitalRead(INPUT_UP) == HIGH)
     {
-      bButtonPressedDown = true;
-      if (!flag2)
+      if (!bButtonPressedDown && !bAlarmActivated)
+      {
         Serial.println("DOWN");
-      bed.Move_Manual(BedHandler::DOWN);
-      flag2 = true;
+        bed.Move_Manual(BedHandler::DOWN);
+      }
+        
+      if (!bButtonPressedDown && bAlarmActivated)
+      {
+        bAlarmActivated = false;
+        bed.Stop();
+      }
+
+      
+      bButtonPressedDown = true;
       lastDownPress = millis();
     }
     else
@@ -436,10 +451,10 @@ void HandleInputs(unsigned long debounceDelay)
       {
         bButtonPressedDown = false;
         bed.Stop();
-        flag2 = false;
       }
     }
   }
+ 
 
   if (digitalRead(INPUT_POWER) == HIGH) //System OFF
   {
@@ -460,22 +475,28 @@ void HandleAlarm()
     bAlarmActivated = true;
 
     // Clear Alarm Queue
+    while(!alarmQueue.empty())
+    {
+      Serial.println(alarmQueue.size());
+      alarmQueue.pop();
+    }
 
     // ==================== BED ALARM BEHAVIOR HERE ====================                                                                  --> Sure, I could've just made a cool (probably better looking) command struct to hold arguments
     // Add desired bed commands to alarmQueue                                                                                                 for bed.Move_Automatic(..), but function pointers are cool too...
-    //alarmQueue.push([] (BedHandler::Direction a=BedHandler::UP, BedHandler::Modifier b=BedHandler::SECONDS, int c=5) {bed.Move_Automatic(a,b,c);}); --> lol this is so ridiculous
-    alarmQueue.push([] () {bed.Move_Automatic(BedHandler::UP, BedHandler::SECONDS, 5);});
-    alarmQueue.push([] () {bed.Move_Automatic(BedHandler::DOWN, BedHandler::SECONDS, 5);});
+    alarmQueue.push([] () {bed.Move_Automatic(BedHandler::UP, BedHandler::SECONDS, 8);});
+    alarmQueue.push([] () {bed.Move_Automatic(BedHandler::DOWN, BedHandler::SECONDS, 8);});
+    alarmQueue.push([] () {bed.Move_Automatic(BedHandler::UP, BedHandler::SECONDS, 8);});
+    alarmQueue.push([] () {bed.Move_Automatic(BedHandler::DOWN, BedHandler::SECONDS, 8);});
     // ...
     // =================================================================
     
     bAlarmSet = false;
-    client.publish("IFTTT_Bed_with_RPi/alarm", "{\"data\" : { \"alarm\" : { \"time\" : \"TIIIME\", \"active\" : false}}, \"write\" : true}");
+    client.publish("IFTTT_Bed_with_RPi/alarm", "{\"data\" : { \"alarm\" : { \"active\" : false}}, \"write\" : true}");
   }
 
   if (bAlarmActivated)
   {
-    if (!bed.IsMoving())
+    if (!bed.IsMoving()) // Way of making commands happen only after last one completes. Need to change if use functions that don't move bed
     {
       alarmQueue.front()(); // Call the function at beginning of queue
       alarmQueue.pop();
