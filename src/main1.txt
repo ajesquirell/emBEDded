@@ -1,0 +1,57 @@
+#include <Arduino.h>
+#include <ESP8266WiFi.h>
+
+// Pin definitions
+#define OUTPUT_UP D8
+#define OUTPUT_DOWN D7
+#define INPUT_UP D5
+#define INPUT_DOWN D6
+#define INPUT_POWER 9
+
+// Global pin interrupt flags (volatile because they are changed within the interrupt i.e. outside of the main loop)
+volatile bool bButtonPressedUp = false;
+volatile bool bButtonPressedDown = false;
+
+int value = 0;
+
+void setup() {
+  // put your setup code here, to run once:
+  Serial.begin(115200);
+  
+  pinMode(LED_BUILTIN, OUTPUT);
+  pinMode(LED_BUILTIN_AUX, OUTPUT);
+
+  pinMode(OUTPUT_UP, OUTPUT);
+  pinMode(OUTPUT_DOWN, OUTPUT);
+
+  pinMode(INPUT_UP, INPUT_PULLUP);
+  pinMode(INPUT_DOWN, INPUT_PULLUP);
+
+  pinMode(INPUT_POWER, INPUT);
+
+  
+
+}
+
+void loop() {
+  digitalWrite(LED_BUILTIN, 0);
+  delayMicroseconds(value);
+  digitalWrite(LED_BUILTIN, 1);
+  delayMicroseconds(5000 - value);
+
+  if (digitalRead(INPUT_UP) == 0)
+  {
+    value+=20;
+  }
+  if (digitalRead(INPUT_DOWN) == 0)
+  {
+    value-=20;
+  }
+  if (value > 5000)
+    value = 5000;
+  if (value < 0)
+  value = 0;
+
+  Serial.println(value);
+
+}

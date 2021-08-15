@@ -2,13 +2,21 @@
 
 ======================================================================== MPU ========================================================================
     - Check and fix if MPU connection fails. Reset or something. Bunch of registers that can probably do something (see 107 for reset)
-    - Code to check if device has been stopped for certain length of time, then go to sleep (probably in main.cpp actually)
-    - Code here to program the MPU to go to sleep (actually CYCLE mode) while waking up every so often to take single accel reading (reg. 107 + 108)
-      -- (Preset wake up intervals in register 108. Probaly use 5hz here)
-      -- To keep MpuHandler class API-like, we can expose a public function that will go to sleep/cycle, which will in turn do things here in Update()
-          -- In my case, this would be called by BedHandler class
-      -- With code in main.cpp to process these reading to tell if we are moving again
-    - Need to somehow allow for reboots without the DMP firmware write failing
+                - Code to check if device has been stopped for certain length of time, then go to sleep (probably in main.cpp actually)
+                - Code here to program the MPU to go to sleep (actually CYCLE mode) while waking up every so often to take single accel reading (reg. 107 + 108)
+                -- (Preset wake up intervals in register 108. Probaly use 5hz here)
+                -- To keep MpuHandler class API-like, we can expose a public function that will go to sleep/cycle, which will in turn do things here in Update()
+                    -- In my case, this would be called by BedHandler class
+                -- With code in main.cpp to process these reading to tell if we are moving again
+    - ^^^^^ Not really, lets just tell it when to sleep when were not using it and wake it back up when we are???? duh
+
+    - Need to somehow allow for reboots without the DMP firmware write failing - Well not really, can just unplug
+
+    - Instead of calibrating MPU every boot, maybe edit init to try to pull calibration data from another beebotte resource first. (Or we could just make sure to boot while bed is flat...a)
+    -- To recalibrate we can run the calibrate function again to save new data to beebotte resource
+
+    - Figure out exactly what the MPU offsets actually are.
+
 
 ======================================================================== ALARM ========================================================================
     - To impement an alarm, I am going to use Beebotte's persistent feature. In addition to Pub/Sub model, they have a read/write model. Write stores
@@ -55,7 +63,6 @@
     - Maybe look into a self-contained broker since beebotte already went out once - https://github.com/martin-ger/uMQTTBroker
 
 
-
 ======================================================================== DONE! ========================================================================
     - CHECK! Maybe we should do more checks for validity of json message. ESP would crash when accidentally sent message with payload {"data" : {"data" : ... }}
     - Cap the time amount to something a bit over the time it takes to fully raise or lower
@@ -66,6 +73,7 @@
 
 /*
 THIS COMMIT:
+- Working on adding MPU behavior
 - Added clear alarmQueue
 - Cleaned up HandleInputs
 - Fixed queue not clearing bug

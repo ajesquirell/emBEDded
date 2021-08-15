@@ -359,7 +359,7 @@ void setup() {
   client.setServer(mqtt_server, 1883);
   client.setCallback(callback);
 
-  //bed.Init();
+  bed.Init();
 }
 
 
@@ -379,7 +379,7 @@ void loop() {
 
   HandleAlarm();
 
-  //bed.Update(); // For MPU related tasks
+  bed.Update(); // For MPU related tasks
 
     
 }
@@ -469,7 +469,6 @@ void HandleInputs(unsigned long debounceDelay)
 
 void HandleAlarm()
 {
-  // If time, set flag to true and once turned off, publish to alarm resource setting alarm as inactive
   if (timeClient.getHours() == alarmHour && timeClient.getMinutes() == alarmMin && bAlarmSet == true)
   {
     bAlarmActivated = true;
@@ -498,7 +497,7 @@ void HandleAlarm()
   {
     if (!bed.IsMoving()) // Way of making commands happen only after last one completes. Need to change if use functions that don't move bed
     {
-      alarmQueue.front()(); // Call the function at beginning of queue
+      alarmQueue.front()(); // Call the command at beginning of queue
       alarmQueue.pop();
     }
 

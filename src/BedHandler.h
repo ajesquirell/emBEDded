@@ -43,6 +43,9 @@ class BedHandler {
 
     bool bIsMoving = false; // Don't check this within this class - For user to check - Move/Stop methods here should be simple and not conditional
 
+    int testValue = 0;
+    float testYpr = 0.0f;
+
     void _Move(Direction dir);
 };
 

@@ -1,6 +1,7 @@
 #ifndef MPUHANDLER_H
 #define MPUHANDLER_H
 
+#define M_PI		3.14159265358979323846 // Because the incorrect errors are annoying
 
 #include "MPU6050_6Axis_MotionApps_V6_12_INLINED.h"
 //#include "MPU6050_6Axis_MotionApps_V6_12_OOP.h"
@@ -10,6 +11,7 @@ class MpuHandler {
     public:
     //MpuHandler();
 
+    float* GetYprData();
     void Update(); // To be called each loop to update
     void Init();
 

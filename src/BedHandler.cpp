@@ -27,9 +27,9 @@ void BedHandler::Move_Automatic(Direction dir, Modifier mod, uint8_t seconds)
 /// @brief Overrides automatic movement
 void BedHandler::Move_Manual(Direction dir)
 {
-    // Bed Controller Buttons override / cancel automatic actions
-    //ticker.detach();
-    // Cancel Percent callback/whatever
+    // Override / cancel automatic actions
+    ticker.detach(); // --> Seconds
+    // Cancel Percent callback/whatever --> Percent
 
     _Move(dir);
 }
@@ -50,6 +50,34 @@ void BedHandler::Stop()
 void BedHandler::Update() 
 {
     mpu.Update();
+
+    /*Serial.print("ypr\t");
+    Serial.print(mpu.GetYprData()[0] * 180 / M_PI);
+    Serial.print("\t");
+    Serial.print(mpu.GetYprData()[1] * 180 / M_PI);
+    Serial.print("\t");
+    Serial.print(mpu.GetYprData()[2] * 180 / M_PI);
+    Serial.println();*/
+
+    digitalWrite(LED_BUILTIN, 0);
+    delayMicroseconds(testValue);
+    digitalWrite(LED_BUILTIN, 1);
+    delayMicroseconds(5000 - testValue);
+
+    testYpr = mpu.GetYprData()[2] * 180 / M_PI;
+    if (testYpr > 90)
+        testYpr = 90;
+    if (testYpr < 0)
+        testYpr = 0;
+    
+    testValue = (testYpr / 90.0f) * 2000;
+
+    if (testValue > 5000)
+        testValue = 5000;
+    if (testValue < 0)
+        testValue = 0;
+
+    Serial.println(testValue);
 }
 void BedHandler::Init()
 {
