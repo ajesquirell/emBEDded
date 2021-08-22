@@ -11,7 +11,7 @@ class MpuHandler {
     public:
     //MpuHandler();
 
-    float* GetYprData();
+    const float* GetYprData();
     void Update(); // To be called each loop to update
     void Init();
 

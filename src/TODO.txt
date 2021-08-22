@@ -17,6 +17,8 @@
 
     - Figure out exactly what the MPU offsets actually are.
 
+    - We could for calibrating instead of always waiting 30 seconds for bed to go down, we could check value of MPU? Because were not calibrating the MPU, just the angle of 0% and 100% bed angle. Maybe
+
 
 ======================================================================== ALARM ========================================================================
     - To impement an alarm, I am going to use Beebotte's persistent feature. In addition to Pub/Sub model, they have a read/write model. Write stores

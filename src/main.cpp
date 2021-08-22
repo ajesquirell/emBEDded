@@ -14,6 +14,8 @@
 #include <NTPClient.h>
 #include <WiFiUdp.h>
 #include <queue>
+#include <stdlib.h>
+#include <string.h>
 
 #include "BedHandler.h"
 #include "credentials.h"
@@ -45,16 +47,17 @@ int alarmMin = 0;
 bool alarmAm = true;
 bool bAlarmSet = false;
 bool bAlarmActivated = false;
-
 void HandleInputs(unsigned long);
 void HandleAlarm();
+
+bool bWaitForCalibration = false;
 
 
 WiFiClient espClient;
 PubSubClient client(espClient);
 //unsigned long lastMsg = 0;
-#define MSG_BUFFER_SIZE	(50)
-char msg[MSG_BUFFER_SIZE];
+//#define MSG_BUFFER_SIZE	(50)
+//char msg[MSG_BUFFER_SIZE];
 //int value = 0;
 
 // Alarm queue for bed commands
@@ -290,13 +293,16 @@ void callback(char* topic, byte* payload, unsigned int length) {
   else if (doc["data"].containsKey("calibrate"))
   {
     // Calibrate the Accel/Gyro/DMP
+    if (!bed.IsMoving() && !bed.IsCalibrating())
+      bed.Calibrate();
+    
+    bWaitForCalibration = true;
   }
-  
-  
 
-  
-
-  
+  else if (doc["data"].containsKey("calibrate_data"))
+  {
+    
+  }
 
 }
 
@@ -314,6 +320,7 @@ void reconnect() {
       // ... and resubscribe
       client.subscribe("IFTTT_Bed_with_RPi/ga", 1);
       client.subscribe("IFTTT_Bed_with_RPi/alarm", 1);
+      client.subscribe("IFTTT_Bed_with_RPi/cal", 1);
     } else {
       Serial.print("failed, rc=");
       Serial.print(client.state());
@@ -381,6 +388,19 @@ void loop() {
 
   bed.Update(); // For MPU related tasks
 
+  if (!bed.IsCalibrating() && bWaitForCalibration) // Only happens for one loop when calibration finishes, so we know to update the resource with new calibration values
+  {
+    
+    char msg[client.getBufferSize()];
+    snprintf(msg, sizeof(msg)/*MSG_BUFFER_SIZE*/, "{\"data\" : {\"calibrate_data\" : [");
+    //(msg, "{\"data\" : {\"calibrate_data\" : [");
+    strcat(msg, String(bed.GetCalibrationValues().first).c_str());
+    strcat(msg, ", ");
+    strcat(msg, String(bed.GetCalibrationValues().second).c_str());
+    strcat(msg, "]}, \"write\" : true}");
+    client.publish("IFTTT_Bed_with_RPi/cal", (const char*)msg);
+    bWaitForCalibration = false;
+  }
     
 }
 

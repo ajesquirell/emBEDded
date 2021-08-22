@@ -83,11 +83,14 @@ void MpuHandler::Init()
   
 }
 
-float* MpuHandler::GetYprData()
+const float* MpuHandler::GetYprData()
 {
   mpu.dmpGetQuaternion(&q, fifoBuffer);
   mpu.dmpGetGravity(&gravity, &q);
   mpu.dmpGetYawPitchRoll(ypr, &q, &gravity);
+  ypr[0] = ypr[0] * 180 / M_PI;
+  ypr[1] = ypr[1] * 180 / M_PI;
+  ypr[2] = ypr[2] * 180 / M_PI;
   return ypr;
 }
 
