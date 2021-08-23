@@ -63,6 +63,7 @@
     - Be able to text to "wake me up"/ move bed
     - If a new command comes in, make sure you stop current command and default to latest one
     - Maybe look into a self-contained broker since beebotte already went out once - https://github.com/martin-ger/uMQTTBroker
+    - Maybe make different resources for publishing and receiving the data, so for example when we post calibration or alarm data, we don't just receive it right back(although it doesn't actually cause a problem)
 
 
 ======================================================================== DONE! ========================================================================

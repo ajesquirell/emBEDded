@@ -7,19 +7,30 @@ BedHandler::~BedHandler()
     Stop();
     if (ticker.active()) ticker.detach();
 }
-void BedHandler::Move_Automatic(Direction dir, Modifier mod, uint8_t seconds)
+void BedHandler::Move_Automatic(Direction dir, Modifier mod, uint8_t amount)
 {
     if (mod == SECONDS) // Start bed movement now, end later via ticker without blocking code
 
     {
         _Move(dir);
-        ticker.attach(seconds, std::bind(&BedHandler::Stop, this));
+        ticker.attach(amount, std::bind(&BedHandler::Stop, this));
     }
     
 
-    if (mod == PERCENT)
+    if (mod == PERCENT) // Start bed movement now, end later via Update() which will check for bed angle
     {
+        //TODO: Correct direction based on current angle (even if user says "raise bed" but wants a lower angle, it will still lower)
+        _Move(dir);
+        bPercentMoving = true;
+        percentMovePacket.pcnt = amount;
+
+        // Shift calibrated range so that low limit of our range is 0
+        fHighLimit = fCalibrationValueUP - fCalibrationValueDOWN;
+
+        //float fStartingPcnt = (( mpu.GetYprData()[2] - fCalibrationValueDOWN ) / fHighLimit) * 100; // Get starting relative percentage
+
         
+        //percentMovePacket.d = fStartingPcnt  dir; // Set direction accordingly
     }
 }
 
@@ -30,6 +41,7 @@ void BedHandler::Move_Manual(Direction dir)
     // Override / cancel automatic actions
     ticker.detach(); // --> Seconds
     // Cancel Percent callback/whatever --> Percent
+    bPercentMoving = false;
 
     _Move(dir);
 }
@@ -55,13 +67,45 @@ void BedHandler::Calibrate()
     fCalibrationValueDOWN = 0;    
 }
 
-void BedHandler::Update() 
+void BedHandler::Update() // To be called every main loop
 {
     mpu.Update();
 
     if (bCalibrating)
     {
         bCalibrating = _UpdateCalibration();
+    }
+
+    if (bPercentMoving)
+    {
+        if (fHighLimit == 0)
+        {
+            // Calibration values not correct, avoid divide by 0 and end now
+            bPercentMoving = false;
+            return;
+        } 
+
+        // Shift raw mpu data by same amount as fHighLimit and normalize to our calibrated range, then make it a percent
+        float fPosPcnt = (( mpu.GetYprData()[2] - fCalibrationValueDOWN ) / fHighLimit) * 100;
+
+        //Debug
+        Serial.println(fCalibrationValueDOWN);
+        Serial.println(mpu.GetYprData()[2] - fCalibrationValueDOWN);
+        Serial.println(fHighLimit);
+        Serial.println(fPosPcnt);
+        Serial.print("\n\n\n");
+
+        // Check if arrived at desired bed angle
+        if (percentMovePacket.d == UP && fPosPcnt >= percentMovePacket.pcnt)
+        {
+            Stop();
+            bPercentMoving = false;
+        }
+        else if (percentMovePacket.d == DOWN && fPosPcnt <= percentMovePacket.pcnt)
+        {
+            Stop();
+            bPercentMoving = false;
+        }
     }
     /*Serial.print("ypr\t");
     Serial.print(mpu.GetYprData()[0] * 180 / M_PI);
@@ -131,7 +175,7 @@ bool BedHandler::_UpdateCalibration()
         {
             if (!IsMoving()) // Start by moving bed all the way down
             {
-                Move_Automatic(DOWN, SECONDS, 5);
+                Move_Automatic(DOWN, SECONDS, 30);
                 nCalibrationStep = 1;
             } 
         }
@@ -145,7 +189,7 @@ bool BedHandler::_UpdateCalibration()
                     fCalibrationValueDOWN += mpu.GetYprData()[2];
                 }
                 fCalibrationValueDOWN /= (float)nSamples; // Average
-                Move_Automatic(UP, SECONDS, 5);
+                Move_Automatic(UP, SECONDS, 30);
                 nCalibrationStep = 2;
             }  
         }
@@ -159,7 +203,7 @@ bool BedHandler::_UpdateCalibration()
                     fCalibrationValueUP += mpu.GetYprData()[2];
                 }
                 fCalibrationValueUP /= (float)nSamples; // Average
-                Move_Automatic(DOWN, SECONDS, 5); // Reset to down position
+                Move_Automatic(DOWN, SECONDS, 30); // Reset to down position
                 nCalibrationStep = -1;
 
                 // Blink to show done
@@ -172,11 +216,11 @@ bool BedHandler::_UpdateCalibration()
                     digitalWrite(LED_BUILTIN_AUX, HIGH);
                     delay(80);
                 }
-                Serial.print("\n\n\n");
+                Serial.print("\n\n");
                 Serial.println("Calibration values:");
                 Serial.println(fCalibrationValueDOWN);
                 Serial.println(fCalibrationValueUP);
-                Serial.print("\n\n\n");
+                Serial.print("\n\n");
 
                 //while(IsMoving()) yield();
                 return false;

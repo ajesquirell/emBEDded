@@ -27,7 +27,7 @@ class BedHandler {
 
     bool IsMoving() { return bIsMoving; }
 
-    void Move_Automatic(Direction dir, Modifier mod, uint8_t values);
+    void Move_Automatic(Direction dir, Modifier mod, uint8_t amount);
     void Move_Manual(Direction dir);
     // Move_Random or Alarm
 
@@ -39,26 +39,37 @@ class BedHandler {
    
     void Calibrate();
     bool IsCalibrating() { return bCalibrating; }
+
+    ///@retval std::pair<float, float> first: UP, second: DOWN
     std::pair<float, float> GetCalibrationValues() { return std::pair<float, float> { fCalibrationValueUP, fCalibrationValueDOWN}; }
+    void SetCalibrationValuesManually(float fUp, float fDown) { fCalibrationValueUP = fUp; fCalibrationValueDOWN = fDown; }
 
     private:
-    Ticker ticker;
     MpuHandler mpu;
+    Ticker ticker;
 
-    bool bIsMoving = false; // Don't check this within this class - For user to check - Move/Stop methods here should be simple and not conditional
+    struct
+    {
+        Direction d;
+        float pcnt;
+    } percentMovePacket;
+    bool bPercentMoving = false;
 
-    int testValue = 0;
-    float testYpr = 0.0f;
+    bool bIsMoving = false; // Don't check this within this class - For user to check via IsMoving() - Move/Stop methods here should be simple and not conditional
 
     bool bCalibrating = false;
     float fCalibrationValueUP = 0;
     float fCalibrationValueDOWN = 0;
+    float fHighLimit = 0; // The shifted calibration "up" value to where the low/down limit is 0 (for normalizing and calculating percent)  
     unsigned long lastTime = 0;
     uint8_t nCalibrationStep = 0;
     int nSamples = 20;
     bool _UpdateCalibration();
 
     void _Move(Direction dir);
+
+    int testValue = 0;
+    float testYpr = 0.0f;
 };
 
 #endif

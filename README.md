@@ -44,6 +44,9 @@ If using Beebotte as the Websocket-MQTT Bridge, you are able to create a "Send-o
 
 NOTE: Some MQTT brokers automatically include "data" in the JSON payload. If that is the case, simply start with your "COMMAND".
 
+Can calibrate max and min bed angle values and save them to the cloud. They are automatically retrieved on boot.
+Alarm values are also saved to the cloud and are automatically retrieved by the device on boot. Just in case of a power outage.
+
 
 credentials.h file format:
 (Example shown for using beebotte.com for MQTT)

@@ -56,7 +56,7 @@ bool bWaitForCalibration = false;
 WiFiClient espClient;
 PubSubClient client(espClient);
 //unsigned long lastMsg = 0;
-//#define MSG_BUFFER_SIZE	(50)
+//#define MSG_BUFFER_SIZE	(256)
 //char msg[MSG_BUFFER_SIZE];
 //int value = 0;
 
@@ -91,7 +91,7 @@ void setup_wifi() {
       delay(50);
       HandleInputs(50);
     }
-    Serial.print("Time was: " + String(millis() - tmp));
+    //Serial.print("Time was: " + String(millis() - tmp));
     Serial.print(".");
   }
 
@@ -185,11 +185,11 @@ void callback(char* topic, byte* payload, unsigned int length) {
       
       if (strcmp(direction, (const char*)"up") == 0)
       {
-        //TBD
+        bed.Move_Automatic(BedHandler::UP, BedHandler::PERCENT, amount);
       }
       else if (strcmp(direction, (const char*)"down") == 0)
       {
-        //TBD
+        bed.Move_Automatic(BedHandler::DOWN, BedHandler::PERCENT, amount);
       }
     }
 
@@ -299,9 +299,12 @@ void callback(char* topic, byte* payload, unsigned int length) {
     bWaitForCalibration = true;
   }
 
-  else if (doc["data"].containsKey("calibrate_data"))
+  else if (doc["data"].containsKey("calibration_data"))
   {
-    
+    bed.SetCalibrationValuesManually(doc["data"]["calibration_data"][0], doc["data"]["calibration_data"][1]);
+    Serial.println("Calibration values set");
+    Serial.println(bed.GetCalibrationValues().first);
+    Serial.println(bed.GetCalibrationValues().second);
   }
 
 }
@@ -390,10 +393,8 @@ void loop() {
 
   if (!bed.IsCalibrating() && bWaitForCalibration) // Only happens for one loop when calibration finishes, so we know to update the resource with new calibration values
   {
-    
     char msg[client.getBufferSize()];
-    snprintf(msg, sizeof(msg)/*MSG_BUFFER_SIZE*/, "{\"data\" : {\"calibrate_data\" : [");
-    //(msg, "{\"data\" : {\"calibrate_data\" : [");
+    snprintf(msg, sizeof(msg), "{\"data\" : {\"calibration_data\" : [");
     strcat(msg, String(bed.GetCalibrationValues().first).c_str());
     strcat(msg, ", ");
     strcat(msg, String(bed.GetCalibrationValues().second).c_str());
