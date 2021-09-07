@@ -15,7 +15,7 @@
     - Instead of calibrating MPU every boot, maybe edit init to try to pull calibration data from another beebotte resource first. (Or we could just make sure to boot while bed is flat...a)
     -- To recalibrate we can run the calibrate function again to save new data to beebotte resource
 
-    - Figure out exactly what the MPU offsets actually are.
+    
 
     - We could for calibrating instead of always waiting 30 seconds for bed to go down, we could check value of MPU? Because were not calibrating the MPU, just the angle of 0% and 100% bed angle. Maybe
 
@@ -69,6 +69,7 @@
 ======================================================================== DONE! ========================================================================
     - CHECK! Maybe we should do more checks for validity of json message. ESP would crash when accidentally sent message with payload {"data" : {"data" : ... }}
     - Cap the time amount to something a bit over the time it takes to fully raise or lower
+    - Figure out exactly what the MPU offsets actually are.
 
 */
 
@@ -76,10 +77,7 @@
 
 /*
 THIS COMMIT:
-- Working on adding MPU behavior
-- Added clear alarmQueue
-- Cleaned up HandleInputs
-- Fixed queue not clearing bug
-- Added ability to turn off alarm with remote
--- (And doesn't move the bed on that press)
+- Added "set bed..." command to ifttt, for percentage movement.
+- Implemented smart direction percentage movement - "raise", "lower", "set" will all simply move to the desired percent regargless of direction
+- Removed calibration on every boot and included offsets generated for my sensor that are now hard coded
 */

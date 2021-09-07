@@ -19,18 +19,18 @@ void BedHandler::Move_Automatic(Direction dir, Modifier mod, uint8_t amount)
 
     if (mod == PERCENT) // Start bed movement now, end later via Update() which will check for bed angle
     {
-        //TODO: Correct direction based on current angle (even if user says "raise bed" but wants a lower angle, it will still lower)
-        _Move(dir);
-        bPercentMoving = true;
-        percentMovePacket.pcnt = amount;
-
         // Shift calibrated range so that low limit of our range is 0
         fHighLimit = fCalibrationValueUP - fCalibrationValueDOWN;
 
-        //float fStartingPcnt = (( mpu.GetYprData()[2] - fCalibrationValueDOWN ) / fHighLimit) * 100; // Get starting relative percentage
+        float fStartingPcnt = (( mpu.GetYprData()[2] - fCalibrationValueDOWN ) / fHighLimit) * 100; // Get starting relative percentage
 
-        
-        //percentMovePacket.d = fStartingPcnt  dir; // Set direction accordingly
+        if (abs(fStartingPcnt - amount) >= 0.5f) // Make sure we're actually moving
+        {
+            percentMovePacket.d = fStartingPcnt < amount ? UP : DOWN; // Set direction accordingly
+            bPercentMoving = true;
+            percentMovePacket.pcnt = amount;
+            _Move(percentMovePacket.d);
+        }
     }
 }
 
@@ -89,11 +89,11 @@ void BedHandler::Update() // To be called every main loop
         float fPosPcnt = (( mpu.GetYprData()[2] - fCalibrationValueDOWN ) / fHighLimit) * 100;
 
         //Debug
-        Serial.println(fCalibrationValueDOWN);
+        /*Serial.println(fCalibrationValueDOWN);
         Serial.println(mpu.GetYprData()[2] - fCalibrationValueDOWN);
         Serial.println(fHighLimit);
         Serial.println(fPosPcnt);
-        Serial.print("\n\n\n");
+        Serial.print("\n\n\n");*/
 
         // Check if arrived at desired bed angle
         if (percentMovePacket.d == UP && fPosPcnt >= percentMovePacket.pcnt)
