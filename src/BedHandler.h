@@ -42,7 +42,13 @@ class BedHandler {
 
     ///@retval std::pair<float, float> first: UP, second: DOWN
     std::pair<float, float> GetCalibrationValues() { return std::pair<float, float> { fCalibrationValueUP, fCalibrationValueDOWN}; }
-    void SetCalibrationValuesManually(float fUp, float fDown) { fCalibrationValueUP = fUp; fCalibrationValueDOWN = fDown; }
+    void SetCalibrationValuesManually(float fUp, float fDown)
+    {
+        fCalibrationValueUP = fUp;
+        fCalibrationValueDOWN = fDown;
+        fHighLimit = fUp - fDown;
+        bUsing360 = (fCalibrationValueUP > 180 || fCalibrationValueDOWN > 180) ? true : false;
+    }
 
     private:
     MpuHandler mpu;
@@ -60,16 +66,15 @@ class BedHandler {
     bool bCalibrating = false;
     float fCalibrationValueUP = 0;
     float fCalibrationValueDOWN = 0;
+    float fCalibrationMidpoint = 0;
     float fHighLimit = 0; // The shifted calibration "up" value to where the low/down limit is 0 (for normalizing and calculating percent)  
+    bool bUsing360 = false;
     unsigned long lastTime = 0;
     uint8_t nCalibrationStep = 0;
     int nSamples = 20;
+    float GetCurrentData();
     bool _UpdateCalibration();
-
     void _Move(Direction dir);
-
-    int testValue = 0;
-    float testYpr = 0.0f;
 };
 
 #endif

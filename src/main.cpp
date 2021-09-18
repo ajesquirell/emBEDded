@@ -292,7 +292,7 @@ void callback(char* topic, byte* payload, unsigned int length) {
 
   else if (doc["data"].containsKey("calibrate"))
   {
-    // Calibrate the Accel/Gyro/DMP
+    // Calibrate Bed up and down MPU values
     if (!bed.IsMoving() && !bed.IsCalibrating())
       bed.Calibrate();
     

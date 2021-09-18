@@ -1,6 +1,13 @@
 #include "BedHandler.h"
 #include <ESP8266WiFi.h>
 
+float BedHandler::GetCurrentData()
+{
+    float fCurrentData = mpu.GetYprData()[2];
+    if (bUsing360 && fCurrentData < 0)
+        fCurrentData = 180.0f + (180.0f - abs(fCurrentData));
+    return fCurrentData;
+}
 
 BedHandler::~BedHandler()
 {
@@ -10,8 +17,10 @@ BedHandler::~BedHandler()
 void BedHandler::Move_Automatic(Direction dir, Modifier mod, uint8_t amount)
 {
     if (mod == SECONDS) // Start bed movement now, end later via ticker without blocking code
-
     {
+        if (amount > 30)
+            amount = 30;
+
         _Move(dir);
         ticker.attach(amount, std::bind(&BedHandler::Stop, this));
     }
@@ -19,10 +28,12 @@ void BedHandler::Move_Automatic(Direction dir, Modifier mod, uint8_t amount)
 
     if (mod == PERCENT) // Start bed movement now, end later via Update() which will check for bed angle
     {
-        // Shift calibrated range so that low limit of our range is 0
-        fHighLimit = fCalibrationValueUP - fCalibrationValueDOWN;
-
-        float fStartingPcnt = (( mpu.GetYprData()[2] - fCalibrationValueDOWN ) / fHighLimit) * 100; // Get starting relative percentage
+        if (amount > 100)
+            amount = 100;
+        if (amount < 0)
+            amount = 0;
+            
+        float fStartingPcnt = (( GetCurrentData() - fCalibrationValueDOWN ) / fHighLimit) * 100; // Get starting relative percentage
 
         if (abs(fStartingPcnt - amount) >= 0.5f) // Make sure we're actually moving
         {
@@ -40,8 +51,7 @@ void BedHandler::Move_Manual(Direction dir)
 {
     // Override / cancel automatic actions
     ticker.detach(); // --> Seconds
-    // Cancel Percent callback/whatever --> Percent
-    bPercentMoving = false;
+    bPercentMoving = false; // --> Percent
 
     _Move(dir);
 }
@@ -82,26 +92,28 @@ void BedHandler::Update() // To be called every main loop
         {
             // Calibration values not correct, avoid divide by 0 and end now
             bPercentMoving = false;
+            Stop();
             return;
         } 
 
         // Shift raw mpu data by same amount as fHighLimit and normalize to our calibrated range, then make it a percent
-        float fPosPcnt = (( mpu.GetYprData()[2] - fCalibrationValueDOWN ) / fHighLimit) * 100;
+        float fCurrentPcnt = (( GetCurrentData() - fCalibrationValueDOWN ) / fHighLimit) * 100;
 
         //Debug
-        /*Serial.println(fCalibrationValueDOWN);
-        Serial.println(mpu.GetYprData()[2] - fCalibrationValueDOWN);
-        Serial.println(fHighLimit);
-        Serial.println(fPosPcnt);
-        Serial.print("\n\n\n");*/
+        //Serial.println(fCalibrationValueDOWN);
+        //Serial.println(mpu.GetYprData()[2] - fCalibrationValueDOWN);
+        //Serial.println(fHighLimit);
+        //Serial.println(GetCurrentData());
+        Serial.println(fCurrentPcnt);
+        Serial.print("\n");
 
         // Check if arrived at desired bed angle
-        if (percentMovePacket.d == UP && fPosPcnt >= percentMovePacket.pcnt)
+        if (percentMovePacket.d == UP && fCurrentPcnt >= percentMovePacket.pcnt)
         {
             Stop();
             bPercentMoving = false;
         }
-        else if (percentMovePacket.d == DOWN && fPosPcnt <= percentMovePacket.pcnt)
+        else if (percentMovePacket.d == DOWN && fCurrentPcnt <= percentMovePacket.pcnt)
         {
             Stop();
             bPercentMoving = false;
@@ -189,11 +201,25 @@ bool BedHandler::_UpdateCalibration()
                     fCalibrationValueDOWN += mpu.GetYprData()[2];
                 }
                 fCalibrationValueDOWN /= (float)nSamples; // Average
-                Move_Automatic(UP, SECONDS, 30);
+                Move_Automatic(UP, SECONDS, 5);
                 nCalibrationStep = 2;
             }  
         }
         case(2):
+        {
+            if (!IsMoving()) // quickly get 'midpoint' to tell direction then go the rest of the way up
+            {
+                for (int i = 0; i < 5; i++)
+                {
+                    mpu.Update();
+                    fCalibrationMidpoint += mpu.GetYprData()[2];
+                }
+                fCalibrationMidpoint /= 5.0f;
+                Move_Automatic(UP, SECONDS, 25);
+                nCalibrationStep = 3;
+            }
+        }
+        case(3):
         {
             if (!IsMoving()) // Bed is up, get calibration vaue and go back down
             {
@@ -220,6 +246,51 @@ bool BedHandler::_UpdateCalibration()
                 Serial.println("Calibration values:");
                 Serial.println(fCalibrationValueDOWN);
                 Serial.println(fCalibrationValueUP);
+                Serial.print("\n\n");
+
+                // Problems could occur because when going the same direction, ypr values will "reset" at a certain point
+                // This is at -180/180 for normal ypr values and 0/360 if we were to convert values 360 degrees
+                // The raw values come in between -180/180 degrees. If this point occurs between our calibration values, it will mess up the simple interpolation I want to do for the percentage
+                // Converting to 360 degrees will fix the problem at 180, as this will shift that problem point to be at 0
+                // The bed will not go more than 180 degrees (not even close), so we don't have to worry about hitting both problem points
+                // (There is the case where UP and DOWN values could have the same sign and still cross one of these problems, but that requires going > 180 deg,
+                // which doesn't make sense for a bed, so I'm not going to worry about it)
+                
+                struct {
+                    unsigned int bits : 2;
+                } bProblem {0b00};
+
+                // If opposite signs, our values cross one of the problem spots
+                if (fCalibrationValueDOWN < 0 && fCalibrationValueUP >= 0)
+                    bProblem.bits = 0b01;
+                else if (fCalibrationValueDOWN >= 0 && fCalibrationValueUP < 0)
+                    bProblem.bits = 0b10;
+                
+                if (bProblem.bits != 0b00)
+                {
+                    bool bCalibrationValueDir = fCalibrationMidpoint - fCalibrationValueDOWN < 0 ? false : true; // If shifted values so Calib-Down value was at 0, the sign of midpoint will give dir.
+
+                    if ((bProblem.bits == 0b01 && !bCalibrationValueDir) ||
+                        (bProblem.bits == 0b10 && bCalibrationValueDir)) // Start neg, going neg OR Start pos, going pos - means we cross 180
+                    {
+                        // Convert to 360 deg
+                        if (fCalibrationValueUP < 0)
+                            fCalibrationValueUP = 180.0f + (180.0f - abs(fCalibrationValueUP));
+                        if (fCalibrationValueDOWN < 0)
+                            fCalibrationValueDOWN = 180.0f + (180.0f - abs(fCalibrationValueDOWN));
+                        
+                        bUsing360 = true;
+                    }
+                }
+
+                // Essentially shift the calibrated range so that low limit of this range is 0, so we can normalize using the high limit
+                fHighLimit = fCalibrationValueUP - fCalibrationValueDOWN;
+
+                Serial.print("\n\n");
+                Serial.println("Calibration values after fixing:");
+                Serial.println(fCalibrationValueDOWN);
+                Serial.println(fCalibrationValueUP);
+                Serial.println(fHighLimit);
                 Serial.print("\n\n");
 
                 //while(IsMoving()) yield();
