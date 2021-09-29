@@ -147,6 +147,7 @@ void BedHandler::Update() // To be called every main loop
 
     //Serial.println(testValue);
 }
+
 void BedHandler::Init()
 {
     mpu.Init();

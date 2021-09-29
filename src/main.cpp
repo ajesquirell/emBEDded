@@ -39,11 +39,12 @@ unsigned long lastUpPress = 0;
 unsigned long lastDownPress = 0;
 bool bButtonPressedUp = false;
 bool bButtonPressedDown = false;
+uint16_t doubleClickSpeed = 300; // ms
 
 int reconnectTime = 0;
 
-int alarmHour = 0;
-int alarmMin = 0;
+uint8_t alarmHour = 0;
+uint8_t alarmMin = 0;
 bool alarmAm = true;
 bool bAlarmSet = false;
 bool bAlarmActivated = false;
@@ -85,7 +86,7 @@ void setup_wifi() {
     tmp = !tmp;
 
     // Total delay of 500ms - Broken up into smaller chunks so that we can still poll for inputs
-    double tmp = millis();
+    //double tmp = millis();
     for (int i = 0; i < 10; i++)
     {
       delay(50);
@@ -415,29 +416,40 @@ void loop() {
 void HandleInputs(unsigned long debounceDelay) 
 {
   /************ UP BUTTON ************/
-  if (millis() - lastUpPress > debounceDelay) // Debounce Delay
+  if (millis() - lastUpPress > debounceDelay)
   {
+    bool bDoubleClicked = false;
     if (digitalRead(INPUT_UP) == LOW && digitalRead(INPUT_DOWN) == HIGH)
     {
-      if (!bButtonPressedUp && !bAlarmActivated)
+      if (!bButtonPressedUp) // First time button pressed after being released
       {
-        Serial.println("UP");
-        bed.Move_Manual(BedHandler::UP);
-      }
+        if (!bAlarmActivated)
+        {
+          Serial.println("UP");
+          bed.Move_Manual(BedHandler::UP);
+        }
 
-      if (!bButtonPressedUp && bAlarmActivated) // Idea is, when alarm is going off, to be able to stop alarm "on press" without also causing the bed to move on that one press
-      {
-        bAlarmActivated = false;
-        bed.Stop();
-      }
+        if (bAlarmActivated) // Idea is, when alarm is going off, to be able to stop alarm "on press" without also causing the bed to move on that one press
+        {
+          bAlarmActivated = false;
+          bed.Stop();
+        }
 
-      
+        if (millis() - lastUpPress < doubleClickSpeed)
+        {
+          Serial.println("Double Click!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
+          Serial.println(lastUpPress);
+          Serial.println(bButtonPressedUp);
+          Serial.println();
+          bed.Move_Automatic(BedHandler::UP, BedHandler::PERCENT, 100);
+        }
+      }
       bButtonPressedUp = true;
       lastUpPress = millis();
     }
     else
     {
-      if (bButtonPressedUp == true) // Because we don't want this to constantly be stopping the bed when it is trying to move automatically, only after remote button is pressed
+      if (bButtonPressedUp == true && !bDoubleClicked) // First time button released after being pressed, and not after a double click (both so that it doesn't stop when moving in auto)
       {
         bButtonPressedUp = false;
         bed.Stop();
@@ -446,36 +458,43 @@ void HandleInputs(unsigned long debounceDelay)
   }
 
   /************ DOWN BUTTON ************/
-  if (millis() - lastDownPress > debounceDelay) // Debounce Delay
+  if (millis() - lastDownPress > debounceDelay)
   {
+    bool bDoubleClicked = false;
     if (digitalRead(INPUT_DOWN) == LOW && digitalRead(INPUT_UP) == HIGH)
     {
-      if (!bButtonPressedDown && !bAlarmActivated)
+      if (!bButtonPressedDown)
       {
-        Serial.println("DOWN");
-        bed.Move_Manual(BedHandler::DOWN);
-      }
+        if (!bAlarmActivated)
+        {
+          Serial.println("DOWN");
+          bed.Move_Manual(BedHandler::DOWN);
+        }
+          
+        if (bAlarmActivated)
+        {
+          bAlarmActivated = false;
+          bed.Stop();
+        }
         
-      if (!bButtonPressedDown && bAlarmActivated)
-      {
-        bAlarmActivated = false;
-        bed.Stop();
+        if (millis() - lastDownPress < doubleClickSpeed)
+        {
+          bed.Move_Automatic(BedHandler::DOWN, BedHandler::PERCENT, 0);
+        }
       }
-
       
       bButtonPressedDown = true;
       lastDownPress = millis();
     }
     else
     {
-      if (bButtonPressedDown == true)
+      if (bButtonPressedDown == true && !bDoubleClicked)
       {
         bButtonPressedDown = false;
         bed.Stop();
       }
     }
   }
- 
 
   if (digitalRead(INPUT_POWER) == HIGH) //System OFF
   {
